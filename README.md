@@ -36,6 +36,16 @@ Consider the file `master.html`, that you can find in the `test` directory:
 </html>
 ```
 
+and convert it into markdown filtering it with `include-doc.lua` this way:
+
+```sh
+pandoc -f html -t markdown -s -L include-doc.lua master.html
+```
+
+The resulting document will embed the contents of `chap1.html`, `chap2.json`, 
+`chap3.md`, `chap4.md` (with its `chap4s1.html` and `chap4s2.json` sub-documents) 
+and `chap5.md`.
+
 `include-doc.lua` looks for Pandoc `Div` elements with an `include-doc` class.
 
 When it finds such elements, it fetches the contents of the source specified in the
