@@ -79,7 +79,7 @@ After a successful replacement,
   changes in the imported document; by the way, the attribute value is the SHA-1
   of the imported document contents)
 
-## Recursivity and infinite loops
+## Recursion and infinite loops
 
 The filter is recursive, so the whole document structure can have an arbitrary depth.
 
