@@ -123,11 +123,11 @@ inclusions, and `other-filter.lua` is the filter to apply to the document once i
 
 You can also include the sub-documents' metadata. There are two ways:
 
-- adding also the class `include-meta` to the `Div` elements used to include sub-documents
+- adding the class `include-meta` to the `Div` elements used to include sub-documents
 
 - adding `include-sub-meta: true` to the main document's metadata
 
-The first method lets you import metadata selectively, for each sub-document.
+The first method lets you import metadata selectively for each sub-document.
 
 The second one makes the filter store every sub-document's metadata in the resulting doc.
 
@@ -169,10 +169,23 @@ title: Assembled document
 # Title
 
 This is a master document that includes some parts from other documents.
+
+::: {.include-doc .included include-format="html" include-src="chap1.html" include-sha1="011822fbb02463dc05c2f35d8d7066f3ee320c5a" included-id="included_2"}
+## Chapter 1
+
+This is the first chapter.
+:::
 ```
 
-As you can see, every sub-document's metadata is complemented with a `src` field
-reporting the sub-document source.
+(the output is cut to show only the first part of the document)
+
+As you can see, every sub-document's metadata is under a sub-key of `included-sub-meta`.
+
+The sub-key is an identifier assigned by the filter to each imported document.
+The same value is stored in the `included-id` attribute of the `Div`, whose
+contents have been replaced by the sub-document.
+
+The sub-document metadata are complemented with a `src` field reporting its source.
 
 ## Aknowledgements
 
