@@ -1,10 +1,31 @@
 --- A Pandoc filter to recursively include sub-documents.
 
+--- The class for `Div` elements to see their contents replaced by the ones
+-- of the sources specified with @{INCLUDE_SRC_ATTR} and @{INCLUDE_FORMAT_ATTR}.
 local INCLUDE_DOC_CLASS = "include-doc"
-local INCLUDE_INCLUDED_CLASS = "included"
+--- The attribute for inclusion `Div`s that specifies the format of the document to be included.
 local INCLUDE_FORMAT_ATTR = "include-format"
+--- The attribute for inclusion `Div`s that specifies the source of the document to be included.
 local INCLUDE_SRC_ATTR = "include-src"
+--- The class for `Div` elements (that already have the @{INCLUDE_DOC_CLASS})
+-- to make the filter store also the metadata of the included documents.
+local INCLUDE_DOC_META_CLASS = "include-meta"
+--- The class to add to `Div` elements that specify a sub-document inclusion,
+-- when the inclusion succeeds.
+local INCLUDE_INCLUDED_CLASS = "included"
+--- The attribute that carries the SHA-1 of the imported contents, when the inclusion succeeds.
 local INCLUDE_SHA1_ATTR = "include-sha1"
+--- The metadata key in the main document to tell the filter to store every imported document's
+-- metadata among the metadata of the resulting document.
+local INCLUDE_DOC_SUB_META_FLAG = "include-sub-meta"
+--- The metadata key of the resulting document, carrying the metadata of imported documents.
+local INCLUDE_DOC_SUB_META_KEY = "included-sub-meta"
+--- The attribute with the identifier that this filter assigns to an imported document.
+-- It's equal to the sub-key of @{INCLUDE_DOC_SUB_META_KEY} that contains the sub-document metadata
+-- in the resulting document.
+local INCLUDE_ID_ATTR = "included-id"
+--- The prefix used for the values of the @{INCLUDE_ID_ATTR} attribute.
+local INCLUDE_ID_PREFIX = "included_"
 
 ---@diagnostic disable-next-line: undefined-global
 local PANDOC_STATE = PANDOC_STATE
@@ -18,10 +39,15 @@ local current_src = PANDOC_STATE.input_files[1] or '__MAIN__'
 --- An array of tables representing the included sources (documents).
 --
 -- Every element of @{includes} has these fields:
+--@field id the id of the imported document
 --@field index the index in the @{includes} array
 --@field src the source (its URI or path)
 --@field subs the indices (in @{includes}) of the sources included by this source
 local includes = {}
+
+--- When it's `true`, the included documents' metadata are imported
+-- under the main document's metadata at the key specified by @{INCLUDE_DOC_SUB_META}
+local include_all_meta = false
 
 local function logging_info(...)
 end
@@ -59,7 +85,7 @@ end
 
 --- Looks for a source in the @{includes} array and appends it if it's not there yet.
 --@param src the source to look for
---@returns the index of the source in the @{includes} array
+--@returns the index of the source in the @{includes} array and the element in the same array
 local function indexOfIncluded(src)
   for j = 1, #includes do
     if includes[j].src == src then
@@ -67,8 +93,26 @@ local function indexOfIncluded(src)
     end
   end
   local index = #includes + 1
-  table_insert(includes, { index = index, src = src, subs = {} })
-  return index
+  local incl =
+  {
+    index = index,
+    src = src,
+    subs = {},
+  }
+  table_insert(includes, incl)
+  return index, incl
+end
+
+--- Looks for the internal id of an imported source.
+--@param src the source to look for.
+--@returns the id and the element in the @{includes} array (see also @{indexOfIncluded}).
+local function idOfIncluded(src)
+  local index = indexOfIncluded(src)
+  local incl = includes[index]
+  if not incl.id then
+    incl.id = INCLUDE_ID_PREFIX .. tostring(index)
+  end
+  return incl.id, incl
 end
 
 --- A textual representation of the array that stores references to all the included sources.
@@ -141,7 +185,7 @@ local function longerChain(chain, elem)
   return newChain
 end
 
---- Checks whether a chain of included documents is cyclic (has circular references that 
+--- Checks whether a chain of included documents is cyclic (has circular references that
 -- would create a closed, infinite loop of inclusions).
 --@param chain a list of indices of included documents in the @{includes} array.
 --@param depth since this function is recursive, this argument tracks the depth of recursion (it's only for debugging purposes)
@@ -177,7 +221,7 @@ end
 
 --- A Pandoc filter to record all the inclusions of other sources (sub-documents).
 -- Div blocks are checked to see whether they are meant to include sub-documents.
-  local find_inclusions_filter = {
+local find_inclusions_filter = {
   Div = function(div)
     if hasClass(div, INCLUDE_DOC_CLASS) then
       local format = div.attributes[INCLUDE_FORMAT_ATTR]
@@ -194,6 +238,19 @@ end
 local include_doc_filter = {
   traverse = 'topdown',
 
+  Meta = function(meta)
+    if meta[INCLUDE_DOC_SUB_META_FLAG] then
+      logging_info(
+        '"'
+        .. INCLUDE_DOC_SUB_META_FLAG
+        .. "\" set to true in main document's metadata => all the included documents' metadata will be stored under the key \""
+        .. INCLUDE_DOC_SUB_META_KEY
+        .. '"'
+      )
+      include_all_meta = true
+    end
+  end,
+
   Div = function(div)
     if hasClass(div, INCLUDE_DOC_CLASS) then
       local format = div.attributes[INCLUDE_FORMAT_ATTR]
@@ -204,11 +261,18 @@ local include_doc_filter = {
         local doc = pandoc.read(markup, format, { standalone = true })
         local meta, blocks = doc.meta, doc.blocks
         if blocks then
+          local included_id, incl = idOfIncluded(src)
+          local do_include_src_meta = include_all_meta or hasClass(div, INCLUDE_DOC_META_CLASS)
+          if do_include_src_meta and meta then
+            meta.src = src
+            incl.meta = meta
+          end
           local identifier = div.identifier
           local classes = div.classes
           table_insert(classes, INCLUDE_INCLUDED_CLASS)
           local attributes = div.attributes
           attributes[INCLUDE_SHA1_ATTR] = pandoc.utils.sha1(tostring(blocks))
+          attributes[INCLUDE_ID_ATTR] = included_id
           local newDiv = pandoc.Div(blocks, pandoc.Attr(identifier, classes, attributes))
           current_src = src
           pandoc.walk_block(newDiv, find_inclusions_filter)
@@ -224,4 +288,22 @@ local include_doc_filter = {
   end
 }
 
-return { find_inclusions_filter, include_doc_filter }
+--- A filter to store the metadata of the imported documents in the resulting doc.
+local store_included_metas = {
+  Meta = function(meta)
+    local sub_meta = pandoc.MetaList({})
+    for i = 1, #includes do
+      local id = includes[i].id
+      local incl_meta = includes[i].meta
+      if incl_meta then
+        sub_meta:insert({ [id] = pandoc.MetaMap(incl_meta) })
+      end
+    end
+    if #sub_meta > 0 then
+      meta[INCLUDE_DOC_SUB_META_KEY] = sub_meta
+    end
+    return meta
+  end
+}
+
+return { find_inclusions_filter, include_doc_filter, store_included_metas }

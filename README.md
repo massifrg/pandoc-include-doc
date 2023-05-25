@@ -42,6 +42,9 @@ and convert it into markdown filtering it with `include-doc.lua` this way:
 pandoc -f html -t markdown -s -L include-doc.lua master.html
 ```
 
+(if you run it from the `test` directory you may need to write `-L ../src/include-doc.lua`
+instead of `-L include-doc.lua`)
+
 The resulting document will embed the contents of `chap1.html`, `chap2.json`, 
 `chap3.md`, `chap4.md` (with its `chap4s1.html` and `chap4s2.json` sub-documents) 
 and `chap5.md`.
@@ -115,6 +118,61 @@ pandoc -f html -t markdown -s -L include-doc.lua -L other-filter.lua -o whole-fi
 
 produces a `whole-filtered-doc.md` markdown document; `master.html` is the master document that specifies
 inclusions, and `other-filter.lua` is the filter to apply to the document once its assembled.
+
+## Including sub-documents' metadata
+
+You can also include the sub-documents' metadata. There are two ways:
+
+- adding also the class `include-meta` to the `Div` elements used to include sub-documents
+
+- adding `include-sub-meta: true` to the main document's metadata
+
+The first method lets you import metadata selectively, for each sub-document.
+
+The second one makes the filter store every sub-document's metadata in the resulting doc.
+
+All the sub-document's metadata are stored under the `included-sub-meta` key.
+
+You need to specify the `-s` option of `pandoc`, otherwise you won't get any metadata
+(but this is not specific to this filter).
+
+Here's an example (see `master-include-all-meta.md` in the `test` directory):
+
+```markdown
+---
+include-sub-meta: true
+included-sub-meta:
+- included_2:
+    src: chap1.html
+    title: Chapter 1
+- included_3:
+    src: chap2.json
+    title: Chapter 2
+- included_4:
+    src: chap3.md
+    title: Chapter 3
+- included_5:
+    src: chap4.md
+    title: Fourth chapter
+- included_6:
+    src: chap5.md
+    title: Chapter 5
+- included_7:
+    src: chap4s1.html
+    title: Fourth chapter, section one
+- included_8:
+    src: chap4s2.json
+    title: Fourth chapter, section two
+title: Assembled document
+---
+
+# Title
+
+This is a master document that includes some parts from other documents.
+```
+
+As you can see, every sub-document's metadata is complemented with a `src` field
+reporting the sub-document source.
 
 ## Aknowledgements
 

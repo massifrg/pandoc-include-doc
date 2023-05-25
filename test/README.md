@@ -12,6 +12,8 @@ pandoc --verbose -f html -t markdown -s -L ../src/include-doc.lua master.html
 
 That will assemble a file starting from `master.html`.
 
+## Tests for multiple inclusions
+
 `master-with-circular.html` and `master-with-double-import.html` are modified versions
 to test respectively the closed loop detection and the inclusion of a document more than once.
 
@@ -23,4 +25,25 @@ Here are the commands to test them:
 ```sh
 pandoc --verbose -f html -t markdown -s -L ../src/include-doc.lua master-with-circular.html
 pandoc --verbose -f html -t markdown -s -L ../src/include-doc.lua master-with-double-import.html
+```
+
+## Tests for metadata inclusions
+
+`master-include-all-meta.md` has an `include-sub-meta` meta value set to `true`, that makes
+the filter include all the included documents' metadata under the key `included-sub-meta`
+in the resulting document.
+
+Here's the command to test it:
+
+```sh
+pandoc --verbose -f markdown -t markdown -s -L ../src/include-doc.lua master-include-all-meta.md
+```
+
+`master-include-some-meta.html` shows how to import the metadata only of some sub-documents,
+adding the class `include-meta` to the including `Div` elements.
+
+Here's the command to test it:
+
+```sh
+pandoc --verbose -f html -t markdown -s -L ../src/include-doc.lua master-include-some-meta.html
 ```

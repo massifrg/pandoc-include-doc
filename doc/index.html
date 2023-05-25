@@ -61,11 +61,59 @@
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#include_doc_filter">include_doc_filter</a></td>
-	<td class="summary">The filter that does the actual inclusion through `Div` elements with a particular class.</td>
+	<td class="summary">The filter that does the actual inclusion through <code>Div</code> elements with a particular class.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#store_included_metas">store_included_metas</a></td>
+	<td class="summary">A filter to store the metadata of the imported documents in the resulting doc.</td>
 	</tr>
 </table>
 <h2><a href="#Fields">Fields</a></h2>
 <table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#INCLUDE_DOC_CLASS">INCLUDE_DOC_CLASS</a></td>
+	<td class="summary">The class for <code>Div</code> elements to see their contents replaced by the ones
+ of the sources specified with <a href="index.html#INCLUDE_SRC_ATTR">INCLUDE_SRC_ATTR</a> and <a href="index.html#INCLUDE_FORMAT_ATTR">INCLUDE_FORMAT_ATTR</a>.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#INCLUDE_FORMAT_ATTR">INCLUDE_FORMAT_ATTR</a></td>
+	<td class="summary">The attribute for inclusion <code>Div</code>s that specifies the format of the document to be included.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#INCLUDE_SRC_ATTR">INCLUDE_SRC_ATTR</a></td>
+	<td class="summary">The attribute for inclusion <code>Div</code>s that specifies the source of the document to be included.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#INCLUDE_DOC_META_CLASS">INCLUDE_DOC_META_CLASS</a></td>
+	<td class="summary">The class for <code>Div</code> elements (that already have the <a href="index.html#INCLUDE_DOC_CLASS">INCLUDE_DOC_CLASS</a>)
+ to make the filter store also the metadata of the included documents.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#INCLUDE_INCLUDED_CLASS">INCLUDE_INCLUDED_CLASS</a></td>
+	<td class="summary">The class to add to <code>Div</code> elements that specify a sub-document inclusion,
+ when the inclusion succeeds.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#INCLUDE_SHA1_ATTR">INCLUDE_SHA1_ATTR</a></td>
+	<td class="summary">The attribute that carries the SHA-1 of the imported contents, when the inclusion succeeds.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#INCLUDE_DOC_SUB_META_FLAG">INCLUDE_DOC_SUB_META_FLAG</a></td>
+	<td class="summary">The metadata key in the main document to tell the filter to store every imported document's
+ metadata among the metadata of the resulting document.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#INCLUDE_DOC_SUB_META_KEY">INCLUDE_DOC_SUB_META_KEY</a></td>
+	<td class="summary">The metadata key of the resulting document, carrying the metadata of imported documents.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#INCLUDE_ID_ATTR">INCLUDE_ID_ATTR</a></td>
+	<td class="summary">The attribute with the identifier that this filter assigns to an imported document.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#INCLUDE_ID_PREFIX">INCLUDE_ID_PREFIX</a></td>
+	<td class="summary">The prefix used for the values of the <a href="index.html#INCLUDE_ID_ATTR">INCLUDE_ID_ATTR</a> attribute.</td>
+	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#PANDOC_STATE">PANDOC_STATE</a></td>
 	<td class="summary"></td>
@@ -77,6 +125,11 @@
 	<tr>
 	<td class="name" nowrap><a href="#current_src">current_src</a></td>
 	<td class="summary">The current source being parsed for documents inclusion.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#include_all_meta">include_all_meta</a></td>
+	<td class="summary">When it's <code>true</code>, the included documents' metadata are imported
+ under the main document's metadata at the key specified by ???</td>
 	</tr>
 </table>
 <h2><a href="#Local_Functions">Local Functions</a></h2>
@@ -92,6 +145,10 @@
 	<tr>
 	<td class="name" nowrap><a href="#indexOfIncluded">indexOfIncluded (src)</a></td>
 	<td class="summary">Looks for a source in the <a href="index.html#includes">includes</a> array and appends it if it's not there yet.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#idOfIncluded">idOfIncluded (src)</a></td>
+	<td class="summary">Looks for the internal id of an imported source.</td>
 	</tr>
 	<tr>
 	<td class="name" nowrap><a href="#includesToString">includesToString ()</a></td>
@@ -138,6 +195,9 @@
 
     <h3>Fields:</h3>
     <ul>
+        <li><span class="parameter">id</span>
+         the id of the imported document
+        </li>
         <li><span class="parameter">index</span>
          the index in the <a href="index.html#includes">includes</a> array
         </li>
@@ -180,12 +240,15 @@
     <strong>include_doc_filter</strong>
     </dt>
     <dd>
-    The filter that does the actual inclusion through `Div` elements with a particular class.
+    The filter that does the actual inclusion through <code>Div</code> elements with a particular class.
 
 
     <h3>Fields:</h3>
     <ul>
         <li><span class="parameter">traverse</span>
+
+        </li>
+        <li><span class="parameter">Meta</span>
 
         </li>
         <li><span class="parameter">Div</span>
@@ -197,7 +260,33 @@
         <li><span class="parameter">doc</span>
 
         </li>
+        <li><span class="parameter">incl</span>
+
+        </li>
         <li><span class="parameter">cycle</span>
+
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "store_included_metas"></a>
+    <strong>store_included_metas</strong>
+    </dt>
+    <dd>
+    A filter to store the metadata of the imported documents in the resulting doc.
+
+
+    <h3>Fields:</h3>
+    <ul>
+        <li><span class="parameter">Meta</span>
+
+        </li>
+        <li><span class="parameter">#</span>
 
         </li>
     </ul>
@@ -211,6 +300,152 @@
     <h2 class="section-header "><a name="Fields"></a>Fields</h2>
 
     <dl class="function">
+    <dt>
+    <a name = "INCLUDE_DOC_CLASS"></a>
+    <strong>INCLUDE_DOC_CLASS</strong>
+    </dt>
+    <dd>
+    The class for <code>Div</code> elements to see their contents replaced by the ones
+ of the sources specified with <a href="index.html#INCLUDE_SRC_ATTR">INCLUDE_SRC_ATTR</a> and <a href="index.html#INCLUDE_FORMAT_ATTR">INCLUDE_FORMAT_ATTR</a>.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "INCLUDE_FORMAT_ATTR"></a>
+    <strong>INCLUDE_FORMAT_ATTR</strong>
+    </dt>
+    <dd>
+    The attribute for inclusion <code>Div</code>s that specifies the format of the document to be included.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "INCLUDE_SRC_ATTR"></a>
+    <strong>INCLUDE_SRC_ATTR</strong>
+    </dt>
+    <dd>
+    The attribute for inclusion <code>Div</code>s that specifies the source of the document to be included.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "INCLUDE_DOC_META_CLASS"></a>
+    <strong>INCLUDE_DOC_META_CLASS</strong>
+    </dt>
+    <dd>
+    The class for <code>Div</code> elements (that already have the <a href="index.html#INCLUDE_DOC_CLASS">INCLUDE_DOC_CLASS</a>)
+ to make the filter store also the metadata of the included documents.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "INCLUDE_INCLUDED_CLASS"></a>
+    <strong>INCLUDE_INCLUDED_CLASS</strong>
+    </dt>
+    <dd>
+    The class to add to <code>Div</code> elements that specify a sub-document inclusion,
+ when the inclusion succeeds.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "INCLUDE_SHA1_ATTR"></a>
+    <strong>INCLUDE_SHA1_ATTR</strong>
+    </dt>
+    <dd>
+    The attribute that carries the SHA-1 of the imported contents, when the inclusion succeeds.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "INCLUDE_DOC_SUB_META_FLAG"></a>
+    <strong>INCLUDE_DOC_SUB_META_FLAG</strong>
+    </dt>
+    <dd>
+    The metadata key in the main document to tell the filter to store every imported document's
+ metadata among the metadata of the resulting document.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "INCLUDE_DOC_SUB_META_KEY"></a>
+    <strong>INCLUDE_DOC_SUB_META_KEY</strong>
+    </dt>
+    <dd>
+    The metadata key of the resulting document, carrying the metadata of imported documents.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "INCLUDE_ID_ATTR"></a>
+    <strong>INCLUDE_ID_ATTR</strong>
+    </dt>
+    <dd>
+    The attribute with the identifier that this filter assigns to an imported document.
+ It's equal to the sub-key of <a href="index.html#INCLUDE_DOC_SUB_META_KEY">INCLUDE_DOC_SUB_META_KEY</a> that contains the sub-document metadata
+ in the resulting document.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "INCLUDE_ID_PREFIX"></a>
+    <strong>INCLUDE_ID_PREFIX</strong>
+    </dt>
+    <dd>
+    The prefix used for the values of the <a href="index.html#INCLUDE_ID_ATTR">INCLUDE_ID_ATTR</a> attribute.
+
+
+
+
+
+
+
+</dd>
     <dt>
     <a name = "PANDOC_STATE"></a>
     <strong>PANDOC_STATE</strong>
@@ -245,6 +480,21 @@
     </dt>
     <dd>
     The current source being parsed for documents inclusion.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "include_all_meta"></a>
+    <strong>include_all_meta</strong>
+    </dt>
+    <dd>
+    When it's <code>true</code>, the included documents' metadata are imported
+ under the main document's metadata at the key specified by ???
 
 
 
@@ -321,6 +571,26 @@
 
 </dd>
     <dt>
+    <a name = "idOfIncluded"></a>
+    <strong>idOfIncluded (src)</strong>
+    </dt>
+    <dd>
+    Looks for the internal id of an imported source.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">src</span>
+         the source to look for.
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
     <a name = "includesToString"></a>
     <strong>includesToString ()</strong>
     </dt>
@@ -368,7 +638,7 @@
          the source including another one
         </li>
         <li><span class="parameter">child_src</span>
-         the source included in `parent_src`
+         the source included in <code>parent_src</code>
         </li>
     </ul>
 
@@ -455,7 +725,7 @@
 </div> <!-- id="main" -->
 <div id="about">
 <i>generated by <a href="http://github.com/stevedonovan/LDoc">LDoc 1.4.6</a></i>
-<i style="float:right;">Last updated 2023-05-24 11:56:17 </i>
+<i style="float:right;">Last updated 2023-05-25 17:38:08 </i>
 </div> <!-- id="about" -->
 </div> <!-- id="container" -->
 </body>
