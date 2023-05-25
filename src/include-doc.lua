@@ -266,6 +266,12 @@ local include_doc_filter = {
           if do_include_src_meta and meta then
             meta.src = src
             incl.meta = meta
+            logging_info(
+              '"'
+              .. INCLUDE_DOC_META_CLASS
+              .. "\" class found importing \"" .. src .. "\" => its metadata will be stored under the key \""
+              .. INCLUDE_DOC_SUB_META_KEY .. '/' .. incl.id .. '"'
+            )
           end
           local identifier = div.identifier
           local classes = div.classes
