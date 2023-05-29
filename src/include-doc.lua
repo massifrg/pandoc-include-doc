@@ -1,5 +1,8 @@
 --- A Pandoc filter to recursively include sub-documents.
 
+--- This filter's version
+local FILTER_VERSION = "0.3"
+
 --- The class for `Div` elements to see their contents replaced by the ones
 -- of the sources specified with @{INCLUDE_SRC_ATTR} and @{INCLUDE_FORMAT_ATTR}.
 local INCLUDE_DOC_CLASS = "include-doc"
@@ -51,12 +54,18 @@ local include_all_meta = false
 
 local function logging_info(...)
 end
+local function logging_warning(...)
+end
+local function logging_error(...)
+end
 local logging
 if pcall(require, "logging") then
   logging = require("logging")
 end
 if logging then
   logging_info = logging.info
+  logging_warning = logging.warning
+  logging_error = logging.error
 end
 
 --- Check whether a Pandoc item with an Attr has a class.
@@ -219,13 +228,34 @@ local function isCyclic(chain, depth)
   return false
 end
 
+--- Checks whether a `Div` is meant to include contents from an external source
+--@param div the `Div` block to check
+--@returns `false` or `true`, the source, its format and a boolean that is true when INCLUDE_DOC_CLASS is found
+local function isInclusionDiv(div, log)
+  local src = div.attributes[INCLUDE_SRC_ATTR]
+  local has_include_doc_class = hasClass(div, INCLUDE_DOC_CLASS)
+  if src then
+    if log then
+      logging_info('Div has a "' .. INCLUDE_SRC_ATTR .. '" attribute, but no "' .. INCLUDE_DOC_CLASS .. '" class')
+    end
+    local format = div.attributes[INCLUDE_FORMAT_ATTR] or pandoc.format.from_path(src)
+    if format then
+      return true, src, format, has_include_doc_class
+    elseif log then
+      logging_warning('format not found for source "' .. src .. '"')
+    end
+  elseif log and has_include_doc_class then
+    logging_warning('Div has "' .. INCLUDE_DOC_CLASS .. '" class, but no valid "' .. INCLUDE_SRC_ATTR .. '" attribute')
+  end
+  return false
+end
+
 --- A Pandoc filter to record all the inclusions of other sources (sub-documents).
 -- Div blocks are checked to see whether they are meant to include sub-documents.
 local find_inclusions_filter = {
   Div = function(div)
-    if hasClass(div, INCLUDE_DOC_CLASS) then
-      local format = div.attributes[INCLUDE_FORMAT_ATTR]
-      local src = div.attributes[INCLUDE_SRC_ATTR]
+    local is_inclusion_div, src, format = isInclusionDiv(div, true)
+    if is_inclusion_div then
       if format and src then
         -- logging_info('find_inclusions_filter, found "' .. src .. '"')
         addToInclusions(current_src, src)
@@ -237,6 +267,10 @@ local find_inclusions_filter = {
 --- The filter that does the actual inclusion through `Div` elements with a particular class.
 local include_doc_filter = {
   traverse = 'topdown',
+
+  Pandoc = function(doc)
+    logging_info("pandoc include-doc.lua filter, version " .. FILTER_VERSION)
+  end,
 
   Meta = function(meta)
     if meta[INCLUDE_DOC_SUB_META_FLAG] then
@@ -252,9 +286,8 @@ local include_doc_filter = {
   end,
 
   Div = function(div)
-    if hasClass(div, INCLUDE_DOC_CLASS) then
-      local format = div.attributes[INCLUDE_FORMAT_ATTR]
-      local src = div.attributes[INCLUDE_SRC_ATTR]
+    local is_inclusion_div, src, format, has_include_doc_class = isInclusionDiv(div)
+    if is_inclusion_div then
       if format and src then
         -- logging_info('INCLUDING ' .. src .. ', FORMAT=' .. format)
         local markup = srcToMarkup(src)
@@ -276,6 +309,10 @@ local include_doc_filter = {
           local identifier = div.identifier
           local classes = div.classes
           table_insert(classes, INCLUDE_INCLUDED_CLASS)
+          if not has_include_doc_class then
+            table_insert(classes, INCLUDE_DOC_CLASS)
+          end
+          classes:sort()
           local attributes = div.attributes
           attributes[INCLUDE_SHA1_ATTR] = pandoc.utils.sha1(tostring(blocks))
           attributes[INCLUDE_ID_ATTR] = included_id
@@ -284,7 +321,7 @@ local include_doc_filter = {
           pandoc.walk_block(newDiv, find_inclusions_filter)
           local is_cyclic, cycle = isCyclic()
           if is_cyclic then
-            logging.error('ERROR, circular reference: ' .. cycleToString(cycle))
+            logging_error('ERROR, circular reference: ' .. cycleToString(cycle))
             return
           end
           return newDiv

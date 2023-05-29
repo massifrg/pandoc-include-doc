@@ -60,9 +60,9 @@ Then it replaces the contents of the `Div` element with the contents of the exte
 
 For the replacement to succeed, _these elements are mandatory_:
 
-- the `include-doc` class
+- ~~the `include-doc` class~~ (see [less clutter](#less-clutter) below)
 
-- the `include-format` attribute (it's `data-include-format` in HTML)
+- ~~the `include-format` attribute (it's `data-include-format` in HTML)~~  (see [less clutter](#less-clutter) below)
 
 - the `include-src` attribute (it's `data-include-src` in HTML)
 
@@ -186,6 +186,24 @@ The same value is stored in the `included-id` attribute of the `Div`, whose
 contents have been replaced by the sub-document.
 
 The sub-document metadata are complemented with a `src` field reporting its source.
+
+## Less clutter
+
+Since version 0.3, you can specify only the `include-src` attribute, and the `Div` will be
+considered an "inclusion Div", as if it had the `include-doc` class and the `include-format`
+attribute.
+
+Unless you specify it, the source format will be guessed from its path
+calling [from_path](https://pandoc.org/lua-filters.html#pandoc.format.from_path) (available
+since version 3.1.2 of Pandoc).
+
+If the format is not identified, the source contents will not be included in the output.
+
+The `include-doc` class will be added, if not present.
+
+## Version
+
+The current version is 0.3 (2023, May 29th).
 
 ## Aknowledgements
 

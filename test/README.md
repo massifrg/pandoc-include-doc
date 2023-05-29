@@ -47,3 +47,12 @@ Here's the command to test it:
 ```sh
 pandoc --verbose -f html -t markdown -s -L ../src/include-doc.lua master-include-some-meta.html
 ```
+
+## A test file with less classes and attributes
+
+`master-with-less-attributes.html` produces the same output of `master.html` without
+specifying the class `include-doc` and the `include-format` attribute for every inclusion.
+
+```sh
+pandoc --verbose -f html -t markdown -s -L ../src/include-doc.lua master-with-less-attributes.html
+```
