@@ -56,3 +56,19 @@ specifying the class `include-doc` and the `include-format` attribute for every 
 ```sh
 pandoc --verbose -f html -t markdown -s -L ../src/include-doc.lua master-with-less-attributes.html
 ```
+
+## Testing `inclusion.tree.lua`
+
+`inclusion-tree.lua` is a custom writer/filter to extract the structure of documents' inclusion.
+
+### As a writer
+
+```sh
+pandoc -f html  -L ../src/include-doc.lua -t ../src/inclusion-tree.lua -s master.html
+```
+
+### As a filter
+
+```sh
+pandoc -f html  -t html -L ../src/include-doc.lua -L ../src/inclusion-tree.lua master.html
+```

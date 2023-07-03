@@ -1,7 +1,7 @@
 --- A Pandoc filter to recursively include sub-documents.
 
 --- This filter's version
-local FILTER_VERSION = "0.3"
+local FILTER_VERSION = "0.4"
 
 --- The class for `Div` elements to see their contents replaced by the ones
 -- of the sources specified with @{INCLUDE_SRC_ATTR} and @{INCLUDE_FORMAT_ATTR}.
@@ -23,6 +23,14 @@ local INCLUDE_SHA1_ATTR = "include-sha1"
 local INCLUDE_DOC_SUB_META_FLAG = "include-sub-meta"
 --- The metadata key of the resulting document, carrying the metadata of imported documents.
 local INCLUDE_DOC_SUB_META_KEY = "included-sub-meta"
+--- The metadata key (in the resulting doc) that stores the id of the root document contents
+local ROOT_ID_META_KEY = "root_id"
+--- The metadata key (in the resulting doc) that stores the format of the root document contents
+local ROOT_FORMAT_META_KEY = "root_format"
+--- The metadata key (in the resulting doc) that stores the source of the root document contents
+local ROOT_SRC_META_KEY = "root_src"
+--- The metadata key (in the resulting doc) that stores the SHA1 of the root document contents
+local ROOT_SHA1_META_KEY = "root_sha1"
 --- The attribute with the identifier that this filter assigns to an imported document.
 -- It's equal to the sub-key of @{INCLUDE_DOC_SUB_META_KEY} that contains the sub-document metadata
 -- in the resulting document.
@@ -47,6 +55,15 @@ local current_src = PANDOC_STATE.input_files[1] or '__MAIN__'
 --@field src the source (its URI or path)
 --@field subs the indices (in @{includes}) of the sources included by this source
 local includes = {}
+
+-- the id of the root document
+local root_id = "root"
+-- the src of the root document
+local root_src = current_src
+-- the format of the root document
+local root_format = pandoc.format.from_path(current_src)
+-- the SHA1 of the root document contents
+local root_sha1
 
 --- When it's `true`, the included documents' metadata are imported
 -- under the main document's metadata at the key specified by @{INCLUDE_DOC_SUB_META}
@@ -232,6 +249,9 @@ end
 --@param div the `Div` block to check
 --@returns `false` or `true`, the source, its format and a boolean that is true when INCLUDE_DOC_CLASS is found
 local function isInclusionDiv(div, log)
+  if not div.tag == "Div" then
+    return false
+  end
   local src = div.attributes[INCLUDE_SRC_ATTR]
   local has_include_doc_class = hasClass(div, INCLUDE_DOC_CLASS)
   if src then
@@ -253,6 +273,11 @@ end
 --- A Pandoc filter to record all the inclusions of other sources (sub-documents).
 -- Div blocks are checked to see whether they are meant to include sub-documents.
 local find_inclusions_filter = {
+
+  Pandoc = function(doc)
+    root_sha1 = pandoc.utils.sha1(tostring(doc.blocks))
+  end,
+
   Div = function(div)
     local is_inclusion_div, src, format = isInclusionDiv(div, true)
     if is_inclusion_div then
@@ -345,6 +370,10 @@ local store_included_metas = {
     if #sub_meta > 0 then
       meta[INCLUDE_DOC_SUB_META_KEY] = sub_meta
     end
+    meta[ROOT_ID_META_KEY] = pandoc.MetaString(root_id)
+    meta[ROOT_FORMAT_META_KEY] = pandoc.MetaString(root_format)
+    meta[ROOT_SRC_META_KEY] = pandoc.MetaString(root_src)
+    meta[ROOT_SHA1_META_KEY] = pandoc.MetaString(root_sha1)
     return meta
   end
 }

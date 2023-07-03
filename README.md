@@ -119,6 +119,18 @@ pandoc -f html -t markdown -s -L include-doc.lua -L other-filter.lua -o whole-fi
 produces a `whole-filtered-doc.md` markdown document; `master.html` is the master document that specifies
 inclusions, and `other-filter.lua` is the filter to apply to the document once its assembled.
 
+## Metadata added by the filter
+
+This filter adds these metadata (they are all `MetaString`):
+
+- `root_id`: the identifier of the root document
+
+- `root_format`: the format of the root document
+
+- `root_src`: the source of the root document
+
+- `root_sha1`: the SHA1 of the the root document's contents
+
 ## Including sub-documents' metadata
 
 You can also include the sub-documents' metadata. There are two ways:
@@ -201,9 +213,44 @@ If the format is not identified, the source contents will not be included in the
 
 The `include-doc` class will be added, if not present.
 
+## Extracting the structure of inclusions with `inclusion-tree.lua`
+
+`inclusion-tree.lua` is both a filter and a custom writer, and is intended to be run
+after the `include-doc.lua` filter.
+
+It's used to get a tree structure of a document that includes other documents through
+`include-doc.lua`.
+
+### `inclusion-tree.lua` as a writer
+
+As a writer, it ouputs a JSON object like this:
+
+```json
+    "children": [
+      ...
+    ]
+    "format": "html",
+    "id": "root",
+    "sha1": "64b297779956f64503df8dccca191f76403462f0",
+    "src": "master.html"
+
+```
+
+The `children` field is an array of objects with the same `format`, `id`, `sha1` and `src` fields.
+
+If the main document's direct children include other documents as well, they'll have a `children` field,
+otherwise they won't have it.
+
+### `inclusion-tree.lua` as a filter
+
+As a filter, it will output only the `Div` elements intended for inclusion, that correspond to
+the children of the root object you obtain when you use it as a writer.
+
+In other words, you won't have the `format`, `id`, `sha1` and `src` of the main document.
+
 ## Version
 
-The current version is 0.3 (2023, May 29th).
+The current version is 0.4 (2023, July 3rd).
 
 ## Aknowledgements
 
