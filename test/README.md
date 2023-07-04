@@ -27,6 +27,17 @@ pandoc --verbose -f html -t markdown -s -L ../src/include-doc.lua master-with-ci
 pandoc --verbose -f html -t markdown -s -L ../src/include-doc.lua master-with-double-import.html
 ```
 
+## Test double inclusion of the same file from different sources
+
+You may include the same file, or two different files with the same filename, but different paths.
+
+Since the filename is the same, the automatically generated id could be the same, but the filter
+renames the ids that are equal but point to different sources:
+
+```sh
+pandoc --verbose -f html -t markdown -s -L ../src/include-doc.lua master-with-double-two-sources-same-id.html
+```
+
 ## Tests for metadata inclusions
 
 `master-include-all-meta.md` has an `include-sub-meta` meta value set to `true`, that makes

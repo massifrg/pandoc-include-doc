@@ -1,0 +1,27 @@
+<html>
+<head>
+  <title>Assembled document</title>
+</head>
+<body>
+<h1>Title</h1>
+<p>This is a master document that includes some parts from other documents.</p>
+<div class="include-doc" data-include-format="html" data-include-src="chap1.html">
+  <p>This text will be replaced by the contents of "chap1.html".</p>
+</div>
+<div class="include-doc" data-include-format="json" data-include-src="chap2.json">
+  <p>This text will be replaced by the contents of "chap2.json".</p>
+</div>
+<div class="include-doc" data-include-format="markdown" data-include-src="chap3.md">
+  <p>This text will be replaced by the contents of "chap3.md".</p>
+</div>
+<div class="include-doc" data-include-format="markdown" data-include-src="chap4.md">
+  <p>This text will be replaced by the contents of "chap4.md".</p>
+</div>
+<div class="include-doc" data-include-format="markdown" data-include-src="chap5.md">
+  <p>This text will be replaced by the contents of "chap5.md".</p>
+</div>
+<div class="include-doc" data-include-format="markdown" data-include-src="subdir/chap5.md">
+  <p>This should be replaced, again, by the contents of "chap5.md".</p>
+</div>
+</body>
+</html>

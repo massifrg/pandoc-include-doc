@@ -1,52 +1,55 @@
 --- A Pandoc filter to recursively include sub-documents.
 
 --- This filter's version
-local FILTER_VERSION = "0.4"
+local FILTER_VERSION            = "0.4.1"
 
 --- The class for `Div` elements to see their contents replaced by the ones
 -- of the sources specified with @{INCLUDE_SRC_ATTR} and @{INCLUDE_FORMAT_ATTR}.
-local INCLUDE_DOC_CLASS = "include-doc"
+local INCLUDE_DOC_CLASS         = "include-doc"
 --- The attribute for inclusion `Div`s that specifies the format of the document to be included.
-local INCLUDE_FORMAT_ATTR = "include-format"
+local INCLUDE_FORMAT_ATTR       = "include-format"
 --- The attribute for inclusion `Div`s that specifies the source of the document to be included.
-local INCLUDE_SRC_ATTR = "include-src"
+local INCLUDE_SRC_ATTR          = "include-src"
 --- The class for `Div` elements (that already have the @{INCLUDE_DOC_CLASS})
 -- to make the filter store also the metadata of the included documents.
-local INCLUDE_DOC_META_CLASS = "include-meta"
+local INCLUDE_DOC_META_CLASS    = "include-meta"
 --- The class to add to `Div` elements that specify a sub-document inclusion,
 -- when the inclusion succeeds.
-local INCLUDE_INCLUDED_CLASS = "included"
+local INCLUDE_INCLUDED_CLASS    = "included"
 --- The attribute that carries the SHA-1 of the imported contents, when the inclusion succeeds.
-local INCLUDE_SHA1_ATTR = "include-sha1"
+local INCLUDE_SHA1_ATTR         = "include-sha1"
 --- The metadata key in the main document to tell the filter to store every imported document's
 -- metadata among the metadata of the resulting document.
 local INCLUDE_DOC_SUB_META_FLAG = "include-sub-meta"
 --- The metadata key of the resulting document, carrying the metadata of imported documents.
-local INCLUDE_DOC_SUB_META_KEY = "included-sub-meta"
+local INCLUDE_DOC_SUB_META_KEY  = "included-sub-meta"
 --- The metadata key (in the resulting doc) that stores the id of the root document contents
-local ROOT_ID_META_KEY = "root_id"
+local ROOT_ID_META_KEY          = "root_id"
 --- The metadata key (in the resulting doc) that stores the format of the root document contents
-local ROOT_FORMAT_META_KEY = "root_format"
+local ROOT_FORMAT_META_KEY      = "root_format"
 --- The metadata key (in the resulting doc) that stores the source of the root document contents
-local ROOT_SRC_META_KEY = "root_src"
+local ROOT_SRC_META_KEY         = "root_src"
 --- The metadata key (in the resulting doc) that stores the SHA1 of the root document contents
-local ROOT_SHA1_META_KEY = "root_sha1"
+local ROOT_SHA1_META_KEY        = "root_sha1"
 --- The attribute with the identifier that this filter assigns to an imported document.
 -- It's equal to the sub-key of @{INCLUDE_DOC_SUB_META_KEY} that contains the sub-document metadata
 -- in the resulting document.
-local INCLUDE_ID_ATTR = "included-id"
+local INCLUDE_ID_ATTR           = "included-id"
 --- The prefix used for the values of the @{INCLUDE_ID_ATTR} attribute.
-local INCLUDE_ID_PREFIX = "included_"
+local INCLUDE_ID_PREFIX         = "included_"
 
 ---@diagnostic disable-next-line: undefined-global
-local PANDOC_STATE = PANDOC_STATE
+local PANDOC_STATE              = PANDOC_STATE
 ---@diagnostic disable-next-line: undefined-global
-local pandoc = pandoc
-local table_insert = table.insert
-local table_concat = table.concat
+local pandoc                    = pandoc
+local pandoc_path               = pandoc.path
+local string_match              = string.match
+local string_gsub               = string.gsub
+local table_insert              = table.insert
+local table_concat              = table.concat
 
 --- The current source being parsed for documents inclusion.
-local current_src = PANDOC_STATE.input_files[1] or '__MAIN__'
+local current_src               = PANDOC_STATE.input_files[1] or '__MAIN__'
 --- An array of tables representing the included sources (documents).
 --
 -- Every element of @{includes} has these fields:
@@ -54,20 +57,20 @@ local current_src = PANDOC_STATE.input_files[1] or '__MAIN__'
 --@field index the index in the @{includes} array
 --@field src the source (its URI or path)
 --@field subs the indices (in @{includes}) of the sources included by this source
-local includes = {}
+local includes                  = {}
 
 -- the id of the root document
-local root_id = "root"
+local root_id                   = "root"
 -- the src of the root document
-local root_src = current_src
+local root_src                  = current_src
 -- the format of the root document
-local root_format = pandoc.format.from_path(current_src)
+local root_format               = pandoc.format.from_path(current_src)
 -- the SHA1 of the root document contents
 local root_sha1
 
 --- When it's `true`, the included documents' metadata are imported
 -- under the main document's metadata at the key specified by @{INCLUDE_DOC_SUB_META}
-local include_all_meta = false
+local include_all_meta          = false
 
 local function logging_info(...)
 end
@@ -129,14 +132,44 @@ local function indexOfIncluded(src)
   return index, incl
 end
 
+--- Normalize an id (lowercase, no special chars, at least one letter, don't start with a number)
+local function normalizeId(id)
+  if id then
+    local nid = string.lower(id)
+    nid = string_gsub(nid, "[^_0-9a-z-]+", "_")
+    if string_match(nid, "^[0-9]") then
+      nid = "_" .. nid
+    end
+    if not string_match(nid, "[_a-z]") then
+      return nil
+    end
+    nid = string_gsub(nid, "_$", "")
+    return nid
+  end
+end
+
 --- Looks for the internal id of an imported source.
 --@param src the source to look for.
 --@returns the id and the element in the @{includes} array (see also @{indexOfIncluded}).
 local function idOfIncluded(src)
   local index = indexOfIncluded(src)
   local incl = includes[index]
-  if not incl.id then
-    incl.id = INCLUDE_ID_PREFIX .. tostring(index)
+  local id = incl.id
+  if not id then
+    if incl.src then
+      local base = pandoc_path.split_extension(incl.src)
+      id = normalizeId(pandoc_path.filename(base))
+    end
+    if id then
+      -- check whether the id is already used with a different src
+      for i = 1, index - 1 do
+        if includes[i].id == id and includes[i].src ~= incl.src then
+          id = id .. "_" .. tostring(index)
+          break
+        end
+      end
+    end
+    incl.id = id or INCLUDE_ID_PREFIX .. tostring(index)
   end
   return incl.id, incl
 end

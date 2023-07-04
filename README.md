@@ -154,25 +154,25 @@ Here's an example (see `master-include-all-meta.md` in the `test` directory):
 ---
 include-sub-meta: true
 included-sub-meta:
-- included_2:
+- chap1:
     src: chap1.html
     title: Chapter 1
-- included_3:
+- chap2:
     src: chap2.json
     title: Chapter 2
-- included_4:
+- chap3:
     src: chap3.md
     title: Chapter 3
-- included_5:
+- chap4:
     src: chap4.md
     title: Fourth chapter
-- included_6:
+- chap5:
     src: chap5.md
     title: Chapter 5
-- included_7:
+- chap4s1:
     src: chap4s1.html
     title: Fourth chapter, section one
-- included_8:
+- chap4s2:
     src: chap4s2.json
     title: Fourth chapter, section two
 title: Assembled document
@@ -182,7 +182,7 @@ title: Assembled document
 
 This is a master document that includes some parts from other documents.
 
-::: {.include-doc .included include-format="html" include-src="chap1.html" include-sha1="011822fbb02463dc05c2f35d8d7066f3ee320c5a" included-id="included_2"}
+::: {.include-doc .included include-format="html" include-src="chap1.html" include-sha1="011822fbb02463dc05c2f35d8d7066f3ee320c5a" included-id="chap1"}
 ## Chapter 1
 
 This is the first chapter.
@@ -250,7 +250,7 @@ In other words, you won't have the `format`, `id`, `sha1` and `src` of the main 
 
 ## Version
 
-The current version is 0.4 (2023, July 3rd).
+The current version is 0.4.1 (2023, July 4th).
 
 ## Aknowledgements
 
