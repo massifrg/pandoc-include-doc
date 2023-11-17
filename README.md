@@ -139,6 +139,9 @@ You can also include the sub-documents' metadata. There are two ways:
 
 - adding `include-sub-meta: true` to the main document's metadata
 
+- setting the `include_sub_meta` variable with `--variable include_sub_meta`
+  in pandoc command line
+
 The first method lets you import metadata selectively for each sub-document.
 
 The second one makes the filter store every sub-document's metadata in the resulting doc.

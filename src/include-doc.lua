@@ -21,6 +21,8 @@ local INCLUDE_SHA1_ATTR         = "include-sha1"
 --- The metadata key in the main document to tell the filter to store every imported document's
 -- metadata among the metadata of the resulting document.
 local INCLUDE_DOC_SUB_META_FLAG = "include-sub-meta"
+--- the variable to use in the CLI to tell the filter to include sub-docs metadata
+local INCLUDE_DOC_SUB_META_VAR  = "include_sub_meta"
 --- The metadata key of the resulting document, carrying the metadata of imported documents.
 local INCLUDE_DOC_SUB_META_KEY  = "included-sub-meta"
 --- The metadata key (in the resulting doc) that stores the id of the root document contents
@@ -40,6 +42,9 @@ local INCLUDE_ID_PREFIX         = "included_"
 
 ---@diagnostic disable-next-line: undefined-global
 local PANDOC_STATE              = PANDOC_STATE
+---@diagnostic disable-next-line: undefined-global
+local PANDOC_WRITER_OPTIONS     = PANDOC_WRITER_OPTIONS
+local VARIABLES                 = PANDOC_WRITER_OPTIONS.variables
 ---@diagnostic disable-next-line: undefined-global
 local pandoc                    = pandoc
 local pandoc_path               = pandoc.path
@@ -70,7 +75,7 @@ local root_sha1
 
 --- When it's `true`, the included documents' metadata are imported
 -- under the main document's metadata at the key specified by @{INCLUDE_DOC_SUB_META}
-local include_all_meta          = false
+local include_all_meta          = VARIABLES[INCLUDE_DOC_SUB_META_VAR] or false
 
 local function logging_info(...)
 end
@@ -88,6 +93,10 @@ if logging then
   logging_info = logging.info
   logging_warning = logging.warning
   logging_error = logging.error
+end
+
+if include_all_meta then
+  logging_warning('including metadata of included sub documents')
 end
 
 --- Check whether a Pandoc item with an Attr has a class.
