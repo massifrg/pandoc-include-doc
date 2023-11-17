@@ -64,7 +64,7 @@ local root_id                   = "root"
 -- the src of the root document
 local root_src                  = current_src
 -- the format of the root document
-local root_format               = pandoc.format.from_path(current_src)
+local root_format               = current_src and pandoc.format.from_path(current_src) or ''
 -- the SHA1 of the root document contents
 local root_sha1
 
@@ -108,7 +108,9 @@ end
 --@returns the fetched document
 --See [pandoc.mediabag.fetch](https://pandoc.org/lua-filters.html#pandoc.mediabag.fetch).
 local function srcToMarkup(src)
-  local mime, content = pandoc.mediabag.fetch(src)
+  local status, mime, content = xpcall(pandoc.mediabag.fetch, function(err)
+    io.stderr:write('source "' .. src .. '" not included: ' .. tostring(err) .. '\n')
+  end, src)
   return content
 end
 
@@ -349,40 +351,42 @@ local include_doc_filter = {
       if format and src then
         -- logging_info('INCLUDING ' .. src .. ', FORMAT=' .. format)
         local markup = srcToMarkup(src)
-        local doc = pandoc.read(markup, format, { standalone = true })
-        local meta, blocks = doc.meta, doc.blocks
-        if blocks then
-          local included_id, incl = idOfIncluded(src)
-          local do_include_src_meta = include_all_meta or hasClass(div, INCLUDE_DOC_META_CLASS)
-          if do_include_src_meta and meta then
-            meta.src = src
-            incl.meta = meta
-            logging_info(
-              '"'
-              .. INCLUDE_DOC_META_CLASS
-              .. "\" class found importing \"" .. src .. "\" => its metadata will be stored under the key \""
-              .. INCLUDE_DOC_SUB_META_KEY .. '/' .. incl.id .. '"'
-            )
+        if markup then
+          local doc = pandoc.read(markup, format, { standalone = true })
+          local meta, blocks = doc.meta, doc.blocks
+          if blocks then
+            local included_id, incl = idOfIncluded(src)
+            local do_include_src_meta = include_all_meta or hasClass(div, INCLUDE_DOC_META_CLASS)
+            if do_include_src_meta and meta then
+              meta.src = src
+              incl.meta = meta
+              logging_info(
+                '"'
+                .. INCLUDE_DOC_META_CLASS
+                .. "\" class found importing \"" .. src .. "\" => its metadata will be stored under the key \""
+                .. INCLUDE_DOC_SUB_META_KEY .. '/' .. incl.id .. '"'
+              )
+            end
+            local identifier = div.identifier
+            local classes = div.classes
+            table_insert(classes, INCLUDE_INCLUDED_CLASS)
+            if not has_include_doc_class then
+              table_insert(classes, INCLUDE_DOC_CLASS)
+            end
+            classes:sort()
+            local attributes = div.attributes
+            attributes[INCLUDE_SHA1_ATTR] = pandoc.utils.sha1(tostring(blocks))
+            attributes[INCLUDE_ID_ATTR] = included_id
+            local newDiv = pandoc.Div(blocks, pandoc.Attr(identifier, classes, attributes))
+            current_src = src
+            pandoc.walk_block(newDiv, find_inclusions_filter)
+            local is_cyclic, cycle = isCyclic()
+            if is_cyclic then
+              logging_error('ERROR, circular reference: ' .. cycleToString(cycle))
+              return
+            end
+            return newDiv
           end
-          local identifier = div.identifier
-          local classes = div.classes
-          table_insert(classes, INCLUDE_INCLUDED_CLASS)
-          if not has_include_doc_class then
-            table_insert(classes, INCLUDE_DOC_CLASS)
-          end
-          classes:sort()
-          local attributes = div.attributes
-          attributes[INCLUDE_SHA1_ATTR] = pandoc.utils.sha1(tostring(blocks))
-          attributes[INCLUDE_ID_ATTR] = included_id
-          local newDiv = pandoc.Div(blocks, pandoc.Attr(identifier, classes, attributes))
-          current_src = src
-          pandoc.walk_block(newDiv, find_inclusions_filter)
-          local is_cyclic, cycle = isCyclic()
-          if is_cyclic then
-            logging_error('ERROR, circular reference: ' .. cycleToString(cycle))
-            return
-          end
-          return newDiv
         end
       end
     end
