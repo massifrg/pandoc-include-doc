@@ -74,9 +74,11 @@ local include_all_meta          = false
 
 local function logging_info(...)
 end
-local function logging_warning(...)
+local function logging_warning(w)
+  io.stderr:write('(W) include-doc: ' .. w .. '\n')
 end
-local function logging_error(...)
+local function logging_error(e)
+  io.stderr:write('(E) include-doc: ' .. e .. '\n')
 end
 local logging
 if pcall(require, "logging") then
@@ -109,7 +111,7 @@ end
 --See [pandoc.mediabag.fetch](https://pandoc.org/lua-filters.html#pandoc.mediabag.fetch).
 local function srcToMarkup(src)
   local status, mime, content = xpcall(pandoc.mediabag.fetch, function(err)
-    io.stderr:write('source "' .. src .. '" not included: ' .. tostring(err) .. '\n')
+    logging_warning('source "' .. src .. '" not included: ' .. tostring(err))
   end, src)
   return content
 end
