@@ -1,0 +1,3 @@
+{
+  "diagnostics.globals": ["pandoc", "FORMAT", "PANDOC_STATE", "PANDOC_WRITER_OPTIONS"],
+}
