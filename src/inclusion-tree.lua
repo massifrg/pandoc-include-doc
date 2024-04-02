@@ -3,7 +3,7 @@
 ---@module "pandoc-types-annotations"
 
 --- This filter's version
-local FILTER_VERSION = "0.4.1"
+local FILTER_VERSION = "0.4.2"
 
 --- The class for `Div` elements to see their contents replaced by the ones
 -- of the sources specified with @{INCLUDE_SRC_ATTR} and @{INCLUDE_FORMAT_ATTR}.
@@ -30,10 +30,10 @@ local ROOT_SRC_META_KEY = "root_src"
 --- The metadata key (in the resulting doc) that stores the SHA1 of the root document contents
 local ROOT_SHA1_META_KEY = "root_sha1"
 
----@diagnostic disable-next-line: undefined-global
 local PANDOC_STATE = PANDOC_STATE
----@diagnostic disable-next-line: undefined-global
 local pandoc = pandoc
+local FORMAT = FORMAT
+
 local table_insert = table.insert
 
 local function logging_info(...)
@@ -53,7 +53,7 @@ if logging then
 end
 
 ---Check whether a Pandoc item with an `Attr` has a class.
----@param elem Block|Inline The `Block` or `Inline` with an `Attr`.
+---@param elem WithAttr The `Block` or `Inline` with an `Attr`.
 ---@param class string The class to look for among the ones in `Attr`'s classes.
 ---@return boolean
 local function hasClass(elem, class)
@@ -96,20 +96,40 @@ local function isInclusionDiv(div, log)
   return false
 end
 
+local inclusion_tree_filter = nil
+local base = {}
+local current_container = base
+
+local function storeAndExplore(div)
+  if not current_container.children then
+    current_container.children = {}
+  end
+  local attributes = div.attributes
+  local container = {
+    id = attributes[INCLUDE_ID_ATTR],
+    src = attributes[INCLUDE_SRC_ATTR],
+    format = attributes[INCLUDE_FORMAT_ATTR],
+    sha1 = attributes[INCLUDE_SHA1_ATTR],
+  }
+  table_insert(current_container.children, container)
+  local saved_current_container = current_container
+  current_container = container
+  pandoc:walk_block(div, inclusion_tree_filter)
+  current_container = saved_current_container
+end
+
 --- The filter that does the actual inclusion through `Div` elements with a particular class.
 local inclusion_tree_filter = {
   traverse = 'topdown',
 
   Blocks = function(blocks)
-    local inclusion_divs = {}
     local block
     for i = 1, #blocks do
       block = blocks[i]
       if block.tag == "Div" and isInclusionDiv(block) then
-        table_insert(inclusion_divs, block)
+        storeAndExplore(block)
       end
     end
-    return inclusion_divs
   end
 }
 
@@ -142,16 +162,13 @@ local function divs2table(divs)
 end
 
 function Writer(doc, opts)
-  local divs = doc:walk(inclusion_tree_filter)
+  doc:walk(inclusion_tree_filter)
   local meta = doc.meta
-  local tree = {
-    id = tostring(meta[ROOT_ID_META_KEY]),
-    src = tostring(meta[ROOT_SRC_META_KEY]),
-    format = tostring(meta[ROOT_FORMAT_META_KEY]),
-    sha1 = tostring(meta[ROOT_SHA1_META_KEY]),
-    children = divs2table(divs.blocks)
-  }
-  return pandoc.json.encode(tree)
+  base.id = tostring(meta[ROOT_ID_META_KEY])
+  base.src = tostring(meta[ROOT_SRC_META_KEY] or PANDOC_STATE.source_url)
+  base.format = tostring(meta[ROOT_FORMAT_META_KEY] or FORMAT)
+  base.sha1 = tostring(meta[ROOT_SHA1_META_KEY])
+  return pandoc.json.encode(base)
 end
 
 function Template()

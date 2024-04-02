@@ -218,15 +218,16 @@ The `include-doc` class will be added, if not present.
 
 ## Extracting the structure of inclusions with `inclusion-tree.lua`
 
-`inclusion-tree.lua` is both a filter and a custom writer, and is intended to be run
-after the `include-doc.lua` filter.
+`inclusion-tree.lua` is a custom writer and it's used to retrieve the tree structure
+of a document as JSON.
 
-It's used to get a tree structure of a document that includes other documents through
-`include-doc.lua`.
+It's tipically used in conjunction with `include-doc.lua`, e.g.:
 
-### `inclusion-tree.lua` as a writer
+```sh
+pandoc -f markdown -t inclusion-tree.lua -L include-doc.lua document-including-other-docs.md
+```
 
-As a writer, it ouputs a JSON object like this:
+It ouputs a JSON object like this:
 
 ```json
     "children": [
@@ -236,24 +237,15 @@ As a writer, it ouputs a JSON object like this:
     "id": "root",
     "sha1": "64b297779956f64503df8dccca191f76403462f0",
     "src": "master.html"
-
 ```
 
 The `children` field is an array of objects with the same `format`, `id`, `sha1` and `src` fields.
 
-If the main document's direct children include other documents as well, they'll have a `children` field,
-otherwise they won't have it.
-
-### `inclusion-tree.lua` as a filter
-
-As a filter, it will output only the `Div` elements intended for inclusion, that correspond to
-the children of the root object you obtain when you use it as a writer.
-
-In other words, you won't have the `format`, `id`, `sha1` and `src` of the main document.
+If the main document's direct children include other documents as well, they'll have a `children` field, otherwise they won't have it.
 
 ## Version
 
-The current version is 0.4.1 (2023, July 4th).
+The current version is 0.4.2 (2024, April 2nd).
 
 ## Aknowledgements
 

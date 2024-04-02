@@ -3,7 +3,7 @@
 ---@module "pandoc-types-annotations"
 
 --- This filter's version
-local FILTER_VERSION            = "0.4.1"
+local FILTER_VERSION            = "0.4.2"
 
 --- The class for `Div` elements to see their contents replaced by the ones
 -- of the sources specified with @{INCLUDE_SRC_ATTR} and @{INCLUDE_FORMAT_ATTR}.
@@ -42,18 +42,16 @@ local INCLUDE_ID_ATTR           = "included-id"
 --- The prefix used for the values of the @{INCLUDE_ID_ATTR} attribute.
 local INCLUDE_ID_PREFIX         = "included_"
 
----@diagnostic disable-next-line: undefined-global
 local PANDOC_STATE              = PANDOC_STATE
----@diagnostic disable-next-line: undefined-global
 local PANDOC_WRITER_OPTIONS     = PANDOC_WRITER_OPTIONS
 local VARIABLES                 = PANDOC_WRITER_OPTIONS.variables
----@diagnostic disable-next-line: undefined-global
 local pandoc                    = pandoc
 local pandoc_path               = pandoc.path
-local string_match              = string.match
 local string_gsub               = string.gsub
-local table_insert              = table.insert
+local string_match              = string.match
 local table_concat              = table.concat
+local table_insert              = table.insert
+local table_sort                = table.sort
 
 --- The current source being parsed for documents inclusion.
 local current_src               = PANDOC_STATE.input_files[1] or '__MAIN__'
@@ -82,7 +80,8 @@ local root_sha1
 -- under the main document's metadata at the key specified by @{INCLUDE_DOC_SUB_META}
 local include_all_meta          = VARIABLES[INCLUDE_DOC_SUB_META_VAR] or false
 
-local function logging_info(...)
+local function logging_info(info)
+  io.stderr:write('(I) include-doc: ' .. info .. '\n')
 end
 local function logging_warning(w)
   io.stderr:write('(W) include-doc: ' .. w .. '\n')
@@ -105,7 +104,7 @@ if include_all_meta then
 end
 
 ---Check whether a Pandoc item with an `Attr` has a class.
----@param elem Block|Inline The `Block` or `Inline` with an `Attr`.
+---@param elem WithAttr The `Block` or `Inline` with an `Attr`.
 ---@param class string The class to look for among the ones in `Attr`'s classes.
 ---@return boolean
 local function hasClass(elem, class)
@@ -336,13 +335,13 @@ end
 
 --- A Pandoc filter to record all the inclusions of other sources (sub-documents).
 -- Div blocks are checked to see whether they are meant to include sub-documents.
+---@type Filter
 local find_inclusions_filter = {
 
   Pandoc = function(doc)
     root_sha1 = pandoc.utils.sha1(tostring(doc.blocks))
   end,
 
-  ---@param div Div
   Div = function(div)
     local is_inclusion_div, src, format = isInclusionDiv(div, true)
     if is_inclusion_div then
@@ -406,7 +405,7 @@ local include_doc_filter = {
             if not has_include_doc_class then
               table_insert(classes, INCLUDE_DOC_CLASS)
             end
-            classes:sort()
+            table_sort(classes)
             local attributes = div.attributes
             attributes[INCLUDE_SHA1_ATTR] = pandoc.utils.sha1(tostring(blocks))
             attributes[INCLUDE_ID_ATTR] = included_id
