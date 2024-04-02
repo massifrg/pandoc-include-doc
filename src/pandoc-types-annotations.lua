@@ -201,7 +201,7 @@
 ---@alias BlockFilterResult nil|Block|List<Block>|EmptyList
 
 ---@class Filter
----@field traverse       "topdown"|"typewise" Traversal order of this filter (default: `typewise`).
+---@field traverse       nil|"topdown"|"typewise" Traversal order of this filter (default: `typewise`).
 ---@field Pandoc         nil|fun(doc: Doc): Doc|nil `nil` = leave untouched.
 ---@field Blocks         nil|fun(blocks: List): BlockFilterResult `nil` = leave untouched, `EmptyList` = delete.
 ---@field Inlines        nil|fun(inlines: List): BlockFilterResult `nil` = leave untouched, `EmptyList` = delete.
