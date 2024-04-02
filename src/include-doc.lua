@@ -353,7 +353,8 @@ local find_inclusions_filter = {
   end,
 }
 
---- The filter that does the actual inclusion through `Div` elements with a particular class.
+---The filter that does the actual inclusion through `Div` elements with a particular class.
+---@type Filter
 local include_doc_filter = {
   traverse = 'topdown',
 
@@ -361,7 +362,6 @@ local include_doc_filter = {
     logging_info("pandoc include-doc.lua filter, version " .. FILTER_VERSION)
   end,
 
-  ---@param meta Meta
   Meta = function(meta)
     if meta[INCLUDE_DOC_SUB_META_FLAG] then
       logging_info(
@@ -375,7 +375,6 @@ local include_doc_filter = {
     end
   end,
 
-  ---@param div Div
   Div = function(div)
     local is_inclusion_div, src, format, has_include_doc_class = isInclusionDiv(div)
     if is_inclusion_div then
@@ -427,9 +426,8 @@ local include_doc_filter = {
 }
 
 --- A filter to store the metadata of the imported documents in the resulting doc.
+---@type Filter
 local store_included_metas = {
-
-  ---@param meta Meta
   Meta = function(meta)
     local sub_meta = pandoc.MetaList({})
     for i = 1, #includes do

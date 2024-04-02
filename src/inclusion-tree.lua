@@ -118,7 +118,8 @@ local function storeAndExplore(div)
   current_container = saved_current_container
 end
 
---- The filter that does the actual inclusion through `Div` elements with a particular class.
+---The filter that does the actual inclusion through `Div` elements with a particular class.
+---@type Filter
 local inclusion_tree_filter = {
   traverse = 'topdown',
 
