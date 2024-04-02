@@ -1,5 +1,7 @@
 --- A Pandoc filter to recursively include sub-documents.
 
+---@module "pandoc-types-annotations"
+
 --- This filter's version
 local FILTER_VERSION            = "0.4.1"
 
@@ -55,13 +57,16 @@ local table_concat              = table.concat
 
 --- The current source being parsed for documents inclusion.
 local current_src               = PANDOC_STATE.input_files[1] or '__MAIN__'
+
+---@class IncludeDoc
+---@field id string|nil The document id.
+---@field index integer The index in the `includes` array.
+---@field src string The document source (URI or path).
+---@field subs integer[] The indexes in the `includes` array of its included sub-documents.
+---@field meta table|nil The `Meta` object of the included document.
+
 --- An array of tables representing the included sources (documents).
---
--- Every element of @{includes} has these fields:
---@field id the id of the imported document
---@field index the index in the @{includes} array
---@field src the source (its URI or path)
---@field subs the indices (in @{includes}) of the sources included by this source
+---@type IncludeDoc[]
 local includes                  = {}
 
 -- the id of the root document
@@ -99,9 +104,10 @@ if include_all_meta then
   logging_warning('including metadata of included sub documents')
 end
 
---- Check whether a Pandoc item with an Attr has a class.
---@param elem the Block or Inline with an Attr
---@param class the class to look for among the ones in Attr's classes
+---Check whether a Pandoc item with an `Attr` has a class.
+---@param elem Block|Inline The `Block` or `Inline` with an `Attr`.
+---@param class string The class to look for among the ones in `Attr`'s classes.
+---@return boolean
 local function hasClass(elem, class)
   if elem and elem.attr and elem.attr.classes then
     local classes = elem.attr.classes
@@ -114,10 +120,10 @@ local function hasClass(elem, class)
   return false
 end
 
---- Fetch the contents of a source as a Pandoc document.
---@param src the source to fetch
---@returns the fetched document
---See [pandoc.mediabag.fetch](https://pandoc.org/lua-filters.html#pandoc.mediabag.fetch).
+---Fetch the contents of a source as a Pandoc document.
+---See [pandoc.mediabag.fetch](https://pandoc.org/lua-filters.html#pandoc.mediabag.fetch).
+---@param src string The source to fetch.
+---@return string|nil content # The file contents or nil when not successful.
 local function srcToMarkup(src)
   local status, mime, content = xpcall(pandoc.mediabag.fetch, function(err)
     logging_warning('source "' .. src .. '" not included: ' .. tostring(err))
@@ -125,9 +131,10 @@ local function srcToMarkup(src)
   return content
 end
 
---- Looks for a source in the @{includes} array and appends it if it's not there yet.
---@param src the source to look for
---@returns the index of the source in the @{includes} array and the element in the same array
+---Looks for a source in the @{includes} array and appends it if it's not there yet.
+---@param src string The source (URI or path) to look for.
+---@return integer index # The index of the source in the @{includes} array and the element in the same array.
+---@return IncludeDoc|nil # A new included document with that source when it is not found.
 local function indexOfIncluded(src)
   for j = 1, #includes do
     if includes[j].src == src then
@@ -135,6 +142,7 @@ local function indexOfIncluded(src)
     end
   end
   local index = #includes + 1
+  ---@type IncludeDoc
   local incl =
   {
     index = index,
@@ -145,7 +153,9 @@ local function indexOfIncluded(src)
   return index, incl
 end
 
---- Normalize an id (lowercase, no special chars, at least one letter, don't start with a number)
+---Normalize an id (lowercase, no special chars, at least one letter, don't start with a number)
+---@param id string The string to be normalized as an identifier.
+---@return string|nil # The normalized identifier or nil when it's not normalizeable.
 local function normalizeId(id)
   if id then
     local nid = string.lower(id)
@@ -162,8 +172,9 @@ local function normalizeId(id)
 end
 
 --- Looks for the internal id of an imported source.
---@param src the source to look for.
---@returns the id and the element in the @{includes} array (see also @{indexOfIncluded}).
+---@param src string The source (URI or path) to look for.
+---@return string id # The identifier
+---@return IncludeDoc included # The element in the `includes`.
 local function idOfIncluded(src)
   local index = indexOfIncluded(src)
   local incl = includes[index]
@@ -187,7 +198,8 @@ local function idOfIncluded(src)
   return incl.id, incl
 end
 
---- A textual representation of the array that stores references to all the included sources.
+---A textual representation of the array that stores references to all the included sources.
+---@return string
 local function includesToString()
   local log_includes = {}
   for i = 1, #includes do
@@ -197,8 +209,9 @@ local function includesToString()
   return 'includes: ' .. table_concat(log_includes, ', ')
 end
 
---- A textual representation of a closed loop of documents' inclusions.
---@param cycle an array of the indices of the sources thaf form the closed loop
+---A textual representation of a closed loop of documents' inclusions.
+---@param cycle integer[] An array of the indices of the sources that form the closed loop.
+---@return string
 local function cycleToString(cycle)
   local str_cycle = {}
   if #cycle > 1 then
@@ -210,9 +223,9 @@ local function cycleToString(cycle)
   return table_concat(str_cycle, ' => ')
 end
 
---- Record in the @{includes} array the fact that a source includes another one.
---@param parent_src the source including another one
---@param child_src the source included in `parent_src`
+---Store in the `includes` array the informatino that a source includes another one.
+---@param parent_src string The source (URI or path) including another one.
+---@param child_src string The source included in `parent_src`
 local function addToInclusions(parent_src, child_src)
   local parent_src_index = indexOfIncluded(parent_src)
   local child_src_index = indexOfIncluded(child_src)
@@ -230,38 +243,40 @@ local function addToInclusions(parent_src, child_src)
   -- logging_info('addToInclusions, '..includesToString())
 end
 
---- Checks whether the index of a source is already in a chain of documents' inclusions.
--- This function is used to test possibile circular references in the sources' inclusions.
---@param chain a list of indices of the sources in the @{includes} array
---@param elem the index of a source
---@returns true if elem is present in chain and its first index
-local function isInChain(chain, elem)
+---Check whether the index of a source is already in a chain of documents' inclusions.
+---This function is used to test possibile circular references in the sources' inclusions.
+---@param chain integer[] A list of indices of the sources in the `includes` array.
+---@param inclIndex integer The index of a source in the `includes` array.
+---@return boolean # `true` if elem is present in `chain`.
+---@return integer # The first index of the source in the `chain`.
+local function isInChain(chain, inclIndex)
   for j = 1, #chain do
-    if chain[j] == elem then
+    if chain[j] == inclIndex then
       return true, j
     end
   end
   return false, 0
 end
 
---- A clone of a chain (an array of indices) with an appended index.
---@param chain a chain (array) of the indices of included sources in the @{includes} array.
---@param elem the index to append to the chain
---@returns a copy of the chain with elem appended.
-local function longerChain(chain, elem)
+---Clone a chain (an array of indices) and append an index.
+---@param chain integer[] A chain (array) of the indices of included sources in the `includes` array.
+---@param inclIndex integer The index (in the `includes` array) to be appended to the chain.
+---@return integer[] # A copy of the chain with `inclIndex` appended.
+local function longerChain(chain, inclIndex)
   local newChain = {}
   for i = 1, #chain do
     table_insert(newChain, chain[i])
   end
-  table_insert(newChain, elem)
+  table_insert(newChain, inclIndex)
   return newChain
 end
 
---- Checks whether a chain of included documents is cyclic (has circular references that
--- would create a closed, infinite loop of inclusions).
---@param chain a list of indices of included documents in the @{includes} array.
---@param depth since this function is recursive, this argument tracks the depth of recursion (it's only for debugging purposes)
---@returns `false` or `true` and the cycle it found (it's a list of indices in the @{includes} array).
+---Check whether a chain of included documents is cyclic (has circular references that
+---would create a closed, infinite loop of inclusions).
+---@param chain integer[]|nil A list of indices of included documents in the `includes` array.
+---@param depth integer|nil Since this function is recursive, this argument tracks the depth of recursion (it's only for debugging purposes).
+---@return boolean is_cyclic
+---@return integer[]|nil # If `is_cyclic` is true, the found cycle (it's a list of indices in the `includes` array).
 local function isCyclic(chain, depth)
   ---@diagnostic disable-next-line: redefined-local
   local chain, depth = chain or { 1 }, depth or 1
@@ -291,9 +306,12 @@ local function isCyclic(chain, depth)
   return false
 end
 
---- Checks whether a `Div` is meant to include contents from an external source
---@param div the `Div` block to check
---@returns `false` or `true`, the source, its format and a boolean that is true when INCLUDE_DOC_CLASS is found
+---Check whether a `Div` is meant to include contents from an external source
+---@param div Div The `Div` block to check.
+---@return boolean is_inclusion_div
+---@return string|nil source # The source (URI or path) of the included document.
+---@return string|nil format # The format of the included document, when specified.
+---@return boolean|nil # `true` when INCLUDE_DOC_CLASS is found.
 local function isInclusionDiv(div, log)
   if not div.tag == "Div" then
     return false
@@ -324,6 +342,7 @@ local find_inclusions_filter = {
     root_sha1 = pandoc.utils.sha1(tostring(doc.blocks))
   end,
 
+  ---@param div Div
   Div = function(div)
     local is_inclusion_div, src, format = isInclusionDiv(div, true)
     if is_inclusion_div then
@@ -343,6 +362,7 @@ local include_doc_filter = {
     logging_info("pandoc include-doc.lua filter, version " .. FILTER_VERSION)
   end,
 
+  ---@param meta Meta
   Meta = function(meta)
     if meta[INCLUDE_DOC_SUB_META_FLAG] then
       logging_info(
@@ -356,6 +376,7 @@ local include_doc_filter = {
     end
   end,
 
+  ---@param div Div
   Div = function(div)
     local is_inclusion_div, src, format, has_include_doc_class = isInclusionDiv(div)
     if is_inclusion_div then
@@ -364,7 +385,8 @@ local include_doc_filter = {
         local markup = srcToMarkup(src)
         if markup then
           local doc = pandoc.read(markup, format, { standalone = true })
-          local meta, blocks = doc.meta, doc.blocks
+          local meta = doc.meta ---@type table
+          local blocks = doc.blocks
           if blocks then
             local included_id, incl = idOfIncluded(src)
             local do_include_src_meta = include_all_meta or hasClass(div, INCLUDE_DOC_META_CLASS)
@@ -388,11 +410,12 @@ local include_doc_filter = {
             local attributes = div.attributes
             attributes[INCLUDE_SHA1_ATTR] = pandoc.utils.sha1(tostring(blocks))
             attributes[INCLUDE_ID_ATTR] = included_id
-            local newDiv = pandoc.Div(blocks, pandoc.Attr(identifier, classes, attributes))
+            local newDiv = pandoc.Div(blocks, pandoc.Attr(identifier, classes, attributes)) ---@type Div
             current_src = src
             pandoc.walk_block(newDiv, find_inclusions_filter)
             local is_cyclic, cycle = isCyclic()
             if is_cyclic then
+              ---@diagnostic disable-next-line: param-type-mismatch
               logging_error('ERROR, circular reference: ' .. cycleToString(cycle))
               return
             end
@@ -406,6 +429,8 @@ local include_doc_filter = {
 
 --- A filter to store the metadata of the imported documents in the resulting doc.
 local store_included_metas = {
+
+  ---@param meta Meta
   Meta = function(meta)
     local sub_meta = pandoc.MetaList({})
     for i = 1, #includes do

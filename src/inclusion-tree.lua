@@ -1,5 +1,7 @@
 --- A Pandoc filter to recursively include sub-documents.
 
+---@module "pandoc-types-annotations"
+
 --- This filter's version
 local FILTER_VERSION = "0.4.1"
 
@@ -50,9 +52,10 @@ if logging then
   logging_error = logging.error
 end
 
---- Check whether a Pandoc item with an Attr has a class.
---@param elem the Block or Inline with an Attr
---@param class the class to look for among the ones in Attr's classes
+---Check whether a Pandoc item with an `Attr` has a class.
+---@param elem Block|Inline The `Block` or `Inline` with an `Attr`.
+---@param class string The class to look for among the ones in `Attr`'s classes.
+---@return boolean
 local function hasClass(elem, class)
   if elem and elem.attr and elem.attr.classes then
     local classes = elem.attr.classes
@@ -65,9 +68,12 @@ local function hasClass(elem, class)
   return false
 end
 
---- Checks whether a `Div` is meant to include contents from an external source
---@param div the `Div` block to check
---@returns `false` or `true`, the source, its format and a boolean that is true when INCLUDE_DOC_CLASS is found
+---Check whether a `Div` is meant to include contents from an external source
+---@param div Div The `Div` block to check.
+---@return boolean is_inclusion_div
+---@return string|nil source # The source (URI or path) of the included document.
+---@return string|nil format # The format of the included document, when specified.
+---@return boolean|nil # `true` when INCLUDE_DOC_CLASS is found.
 local function isInclusionDiv(div, log)
   if not div.tag == "Div" then
     return false
@@ -95,18 +101,19 @@ local inclusion_tree_filter = {
   traverse = 'topdown',
 
   Blocks = function(blocks)
-    local incdivs = {}
+    local inclusion_divs = {}
     local block
     for i = 1, #blocks do
       block = blocks[i]
       if block.tag == "Div" and isInclusionDiv(block) then
-        table_insert(incdivs, block)
+        table_insert(inclusion_divs, block)
       end
     end
-    return incdivs
+    return inclusion_divs
   end
 }
 
+---@param divs Div[]
 local function divs2table(divs)
   local t = {}
   for i = 1, #divs do
