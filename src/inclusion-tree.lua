@@ -3,7 +3,7 @@
 ---@module "pandoc-types-annotations"
 
 --- This filter's version
-local FILTER_VERSION = "0.4.2"
+local FILTER_VERSION = "0.4.3"
 
 --- The class for `Div` elements to see their contents replaced by the ones
 -- of the sources specified with @{INCLUDE_SRC_ATTR} and @{INCLUDE_FORMAT_ATTR}.
@@ -32,25 +32,17 @@ local ROOT_SHA1_META_KEY = "root_sha1"
 
 local PANDOC_STATE = PANDOC_STATE
 local pandoc = pandoc
+local pandoc_path = pandoc.path
 local FORMAT = FORMAT
 
 local table_insert = table.insert
 
-local function logging_info(...)
-end
-local function logging_warning(...)
-end
-local function logging_error(...)
-end
-local logging
-if pcall(require, "logging") then
-  logging = require("logging")
-end
-if logging then
-  logging_info = logging.info
-  logging_warning = logging.warning
-  logging_error = logging.error
-end
+-- add the directory of this script to the lua path to load logging.lua
+package.path = package.path .. ";" .. pandoc_path.directory(PANDOC_SCRIPT_FILE)
+local logging = require("logging")
+local logging_info = logging.info
+local logging_warning = logging.warning
+local logging_error = logging.error
 
 ---Check whether a Pandoc item with an `Attr` has a class.
 ---@param elem WithAttr The `Block` or `Inline` with an `Attr`.
@@ -96,11 +88,18 @@ local function isInclusionDiv(div, log)
   return false
 end
 
-local inclusion_tree_filter = nil
-local base = {}
-local current_container = base
+---@class Container
+---@field id string
+---@field src string
+---@field format string
+---@field sha1 string
+---@field children Container[]
 
-local function storeAndExplore(div)
+local filters = { inclusion_tree_filter = nil }
+local base = {}
+local current_container = base ---@type Container
+
+local function storeAndExplore(div, filter_name)
   if not current_container.children then
     current_container.children = {}
   end
@@ -114,7 +113,7 @@ local function storeAndExplore(div)
   table_insert(current_container.children, container)
   local saved_current_container = current_container
   current_container = container
-  pandoc:walk_block(div, inclusion_tree_filter)
+  div:walk(filters[filter_name])
   current_container = saved_current_container
 end
 
@@ -123,44 +122,15 @@ end
 local inclusion_tree_filter = {
   traverse = 'topdown',
 
-  Blocks = function(blocks)
-    local block
-    for i = 1, #blocks do
-      block = blocks[i]
-      if block.tag == "Div" and isInclusionDiv(block) then
-        storeAndExplore(block)
-      end
+  Div = function(div)
+    if isInclusionDiv(div) then
+      storeAndExplore(div, "inclusion_tree_filter")
+      return pandoc.List()
     end
   end
 }
 
----@param divs Div[]
-local function divs2table(divs)
-  local t = {}
-  for i = 1, #divs do
-    local div = divs[i]
-    local attrs = div.attributes
-    local id = div.identifier
-    if string.len(id) == 0 then
-      id = attrs[INCLUDE_ID_ATTR]
-    end
-    local obj = {
-      id = id,
-      src = attrs[INCLUDE_SRC_ATTR],
-      format = attrs[INCLUDE_FORMAT_ATTR],
-      sha1 = attrs[INCLUDE_SHA1_ATTR],
-      included = hasClass(div, INCLUDE_INCLUDED_CLASS),
-    }
-    if div.content then
-      local children = divs2table(div.content)
-      if #children > 0 then
-        obj.children = children
-      end
-    end
-    table_insert(t, obj)
-  end
-  return t
-end
+filters.inclusion_tree_filter = inclusion_tree_filter
 
 function Writer(doc, opts)
   doc:walk(inclusion_tree_filter)

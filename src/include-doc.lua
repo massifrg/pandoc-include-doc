@@ -3,7 +3,7 @@
 ---@module "pandoc-types-annotations"
 
 --- This filter's version
-local FILTER_VERSION            = "0.4.2"
+local FILTER_VERSION            = "0.4.3"
 
 --- The class for `Div` elements to see their contents replaced by the ones
 -- of the sources specified with @{INCLUDE_SRC_ATTR} and @{INCLUDE_FORMAT_ATTR}.
@@ -52,6 +52,9 @@ local string_match              = string.match
 local table_concat              = table.concat
 local table_insert              = table.insert
 local table_sort                = table.sort
+
+-- add the directory of this script to the lua path to load logging.lua
+package.path = package.path .. ";" .. pandoc_path.directory(PANDOC_SCRIPT_FILE)
 
 --- The current source being parsed for documents inclusion.
 local current_src               = PANDOC_STATE.input_files[1] or '__MAIN__'
