@@ -230,13 +230,15 @@ pandoc -f markdown -t inclusion-tree.lua -L include-doc.lua document-including-o
 It ouputs a JSON object like this:
 
 ```json
+{
     "children": [
       ...
-    ]
+    ],
     "format": "html",
     "id": "root",
     "sha1": "64b297779956f64503df8dccca191f76403462f0",
     "src": "master.html"
+}
 ```
 
 The `children` field is an array of objects with the same `format`, `id`, `sha1` and `src` fields.
@@ -250,6 +252,20 @@ e.g.:
 
 ```sh
 pandoc -f markdown -t inclusion-tree.lua -L include-doc.lua -M root-id=master-doc document-including-other-docs.md
+```
+
+You'll get a JSON like this:
+
+```json
+{
+    "children": [
+      ...
+    ],
+    "format": "markdown",
+    "id": "master-doc",
+    "sha1": "...",
+    "src": "document-including-other-docs.md"
+}
 ```
 
 ## Version
