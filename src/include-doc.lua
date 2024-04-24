@@ -41,6 +41,8 @@ local ROOT_SHA1_META_KEY        = "root_sha1"
 local INCLUDE_ID_ATTR           = "included-id"
 --- The prefix used for the values of the @{INCLUDE_ID_ATTR} attribute.
 local INCLUDE_ID_PREFIX         = "included_"
+--- The value of the current source when it's the standard input
+local SRC_STDIN = '__STDIN__'
 
 local PANDOC_STATE              = PANDOC_STATE
 local PANDOC_WRITER_OPTIONS     = PANDOC_WRITER_OPTIONS
@@ -53,11 +55,22 @@ local table_concat              = table.concat
 local table_insert              = table.insert
 local table_sort                = table.sort
 
--- add the directory of this script to the lua path to load logging.lua
-package.path = package.path .. ";" .. pandoc_path.directory(PANDOC_SCRIPT_FILE)
+---Compute the id of a document from its source, removing protocol, path and extension.
+---@param src? string
+---@return string|nil
+local function idFromSrc(src)
+  if src then
+    local filename = pandoc_path.filename(src)
+    local id = pandoc_path.split_extension(filename)
+    return id
+  end
+end
 
 --- The current source being parsed for documents inclusion.
-local current_src               = PANDOC_STATE.input_files[1] or '__MAIN__'
+local current_src      = PANDOC_STATE.input_files[1]
+if current_src == '-' then
+  current_src = nil
+end
 
 ---@class IncludeDoc
 ---@field id string|nil The document id.
@@ -68,39 +81,29 @@ local current_src               = PANDOC_STATE.input_files[1] or '__MAIN__'
 
 --- An array of tables representing the included sources (documents).
 ---@type IncludeDoc[]
-local includes                  = {}
+local includes         = {}
 
 -- the id of the root document
-local root_id                   = "root"
+local root_id          = idFromSrc(current_src) or "root"
 -- the src of the root document
-local root_src                  = current_src
+local root_src         = current_src or SRC_STDIN
 -- the format of the root document
-local root_format               = current_src and pandoc.format.from_path(current_src) or ''
+local root_format      = current_src and pandoc.format.from_path(current_src) or ''
 -- the SHA1 of the root document contents
 local root_sha1
 
 --- When it's `true`, the included documents' metadata are imported
 -- under the main document's metadata at the key specified by @{INCLUDE_DOC_SUB_META}
-local include_all_meta          = VARIABLES[INCLUDE_DOC_SUB_META_VAR] or false
+local include_all_meta = VARIABLES[INCLUDE_DOC_SUB_META_VAR] or false
 
-local function logging_info(info)
-  io.stderr:write('(I) include-doc: ' .. info .. '\n')
-end
-local function logging_warning(w)
-  io.stderr:write('(W) include-doc: ' .. w .. '\n')
-end
-local function logging_error(e)
-  io.stderr:write('(E) include-doc: ' .. e .. '\n')
-end
-local logging
-if pcall(require, "logging") then
-  logging = require("logging")
-end
-if logging then
-  logging_info = logging.info
-  logging_warning = logging.warning
-  logging_error = logging.error
-end
+local script_dir       = pandoc_path.directory(PANDOC_SCRIPT_FILE)
+package.path           = package.path
+    .. ";" .. script_dir .. '/?.lua;'
+    .. script_dir .. '/?/init.lua'
+local logging          = require("logging")
+local logging_info     = logging.info
+local logging_warning  = logging.warning
+local logging_error    = logging.error
 
 if include_all_meta then
   logging_warning('including metadata of included sub documents')
@@ -226,10 +229,11 @@ local function cycleToString(cycle)
 end
 
 ---Store in the `includes` array the informatino that a source includes another one.
----@param parent_src string The source (URI or path) including another one.
+---@param parent_src? string The source (URI or path) including another one.
 ---@param child_src string The source included in `parent_src`
 local function addToInclusions(parent_src, child_src)
-  local parent_src_index = indexOfIncluded(parent_src)
+  local parent = parent_src or SRC_STDIN
+  local parent_src_index = indexOfIncluded(parent)
   local child_src_index = indexOfIncluded(child_src)
   local subs = includes[parent_src_index].subs
   local found = false

@@ -38,7 +38,8 @@ local FORMAT = FORMAT
 local table_insert = table.insert
 
 -- add the directory of this script to the lua path to load logging.lua
-package.path = package.path .. ";" .. pandoc_path.directory(PANDOC_SCRIPT_FILE)
+local script_dir = pandoc_path.directory(PANDOC_SCRIPT_FILE)
+package.path = package.path .. ";" .. script_dir .. '/?.lua;' .. script_dir .. '/?/init.lua'
 local logging = require("logging")
 local logging_info = logging.info
 local logging_warning = logging.warning
@@ -135,9 +136,10 @@ filters.inclusion_tree_filter = inclusion_tree_filter
 function Writer(doc, opts)
   doc:walk(inclusion_tree_filter)
   local meta = doc.meta
+  local src = tostring(meta[ROOT_SRC_META_KEY] or PANDOC_STATE.source_url)
   base.id = tostring(meta[ROOT_ID_META_KEY])
-  base.src = tostring(meta[ROOT_SRC_META_KEY] or PANDOC_STATE.source_url)
-  base.format = tostring(meta[ROOT_FORMAT_META_KEY] or FORMAT)
+  base.src = src
+  base.format = tostring(meta[ROOT_FORMAT_META_KEY] or pandoc.format.from_path(src) or FORMAT)
   base.sha1 = tostring(meta[ROOT_SHA1_META_KEY])
   return pandoc.json.encode(base)
 end
