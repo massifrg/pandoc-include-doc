@@ -3,7 +3,7 @@
 ---@module "pandoc-types-annotations"
 
 --- This filter's version
-local FILTER_VERSION            = "0.4.3"
+local FILTER_VERSION            = "0.4.4"
 
 --- The class for `Div` elements to see their contents replaced by the ones
 -- of the sources specified with @{INCLUDE_SRC_ATTR} and @{INCLUDE_FORMAT_ATTR}.

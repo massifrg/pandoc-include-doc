@@ -243,9 +243,18 @@ The `children` field is an array of objects with the same `format`, `id`, `sha1`
 
 If the main document's direct children include other documents as well, they'll have a `children` field, otherwise they won't have it.
 
+### Setting (overriding) the root id
+
+You can set the root document `id` with the `-M root-id=...` (or `--metadata root-id=...`) option,
+e.g.:
+
+```sh
+pandoc -f markdown -t inclusion-tree.lua -L include-doc.lua -M root-id=master-doc document-including-other-docs.md
+```
+
 ## Version
 
-The current version is 0.4.2 (2024, April 2nd).
+The current version is 0.4.4 (2024, April 24th).
 
 ## Aknowledgements
 

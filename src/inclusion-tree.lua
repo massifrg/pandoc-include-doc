@@ -3,7 +3,7 @@
 ---@module "pandoc-types-annotations"
 
 --- This filter's version
-local FILTER_VERSION = "0.4.3"
+local FILTER_VERSION = "0.4.4"
 
 --- The class for `Div` elements to see their contents replaced by the ones
 -- of the sources specified with @{INCLUDE_SRC_ATTR} and @{INCLUDE_FORMAT_ATTR}.
@@ -23,6 +23,8 @@ local INCLUDE_SHA1_ATTR = "include-sha1"
 local INCLUDE_ID_ATTR = "included-id"
 --- The metadata key (in the resulting doc) that stores the id of the root document contents
 local ROOT_ID_META_KEY = "root_id"
+--- You can ovverride the root id with --metadata root-id=...
+local OVERRIDE_ROOT_ID_META_KEY = "root-id"
 --- The metadata key (in the resulting doc) that stores the format of the root document contents
 local ROOT_FORMAT_META_KEY = "root_format"
 --- The metadata key (in the resulting doc) that stores the source of the root document contents
@@ -137,7 +139,8 @@ function Writer(doc, opts)
   doc:walk(inclusion_tree_filter)
   local meta = doc.meta
   local src = tostring(meta[ROOT_SRC_META_KEY] or PANDOC_STATE.source_url)
-  base.id = tostring(meta[ROOT_ID_META_KEY])
+  local override_root_id = meta[OVERRIDE_ROOT_ID_META_KEY]
+  base.id = override_root_id and tostring(override_root_id) or tostring(meta[ROOT_ID_META_KEY])
   base.src = src
   base.format = tostring(meta[ROOT_FORMAT_META_KEY] or pandoc.format.from_path(src) or FORMAT)
   base.sha1 = tostring(meta[ROOT_SHA1_META_KEY])
