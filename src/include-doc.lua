@@ -2,48 +2,6 @@
 
 ---@module "pandoc-types-annotations"
 
---- This filter's version
-local FILTER_VERSION            = "0.4.4"
-
---- The class for `Div` elements to see their contents replaced by the ones
--- of the sources specified with @{INCLUDE_SRC_ATTR} and @{INCLUDE_FORMAT_ATTR}.
-local INCLUDE_DOC_CLASS         = "include-doc"
---- The attribute for inclusion `Div`s that specifies the format of the document to be included.
-local INCLUDE_FORMAT_ATTR       = "include-format"
---- The attribute for inclusion `Div`s that specifies the source of the document to be included.
-local INCLUDE_SRC_ATTR          = "include-src"
---- The class for `Div` elements (that already have the @{INCLUDE_DOC_CLASS})
--- to make the filter store also the metadata of the included documents.
-local INCLUDE_DOC_META_CLASS    = "include-meta"
---- The class to add to `Div` elements that specify a sub-document inclusion,
--- when the inclusion succeeds.
-local INCLUDE_INCLUDED_CLASS    = "included"
---- The attribute that carries the SHA-1 of the imported contents, when the inclusion succeeds.
-local INCLUDE_SHA1_ATTR         = "include-sha1"
---- The metadata key in the main document to tell the filter to store every imported document's
--- metadata among the metadata of the resulting document.
-local INCLUDE_DOC_SUB_META_FLAG = "include-sub-meta"
---- the variable to use in the CLI to tell the filter to include sub-docs metadata
-local INCLUDE_DOC_SUB_META_VAR  = "include_sub_meta"
---- The metadata key of the resulting document, carrying the metadata of imported documents.
-local INCLUDE_DOC_SUB_META_KEY  = "included-sub-meta"
---- The metadata key (in the resulting doc) that stores the id of the root document contents
-local ROOT_ID_META_KEY          = "root_id"
---- The metadata key (in the resulting doc) that stores the format of the root document contents
-local ROOT_FORMAT_META_KEY      = "root_format"
---- The metadata key (in the resulting doc) that stores the source of the root document contents
-local ROOT_SRC_META_KEY         = "root_src"
---- The metadata key (in the resulting doc) that stores the SHA1 of the root document contents
-local ROOT_SHA1_META_KEY        = "root_sha1"
---- The attribute with the identifier that this filter assigns to an imported document.
--- It's equal to the sub-key of @{INCLUDE_DOC_SUB_META_KEY} that contains the sub-document metadata
--- in the resulting document.
-local INCLUDE_ID_ATTR           = "included-id"
---- The prefix used for the values of the @{INCLUDE_ID_ATTR} attribute.
-local INCLUDE_ID_PREFIX         = "included_"
---- The value of the current source when it's the standard input
-local SRC_STDIN = '__STDIN__'
-
 local PANDOC_STATE              = PANDOC_STATE
 local PANDOC_WRITER_OPTIONS     = PANDOC_WRITER_OPTIONS
 local VARIABLES                 = PANDOC_WRITER_OPTIONS.variables
@@ -54,6 +12,36 @@ local string_match              = string.match
 local table_concat              = table.concat
 local table_insert              = table.insert
 local table_sort                = table.sort
+
+local script_dir                = pandoc_path.directory(PANDOC_SCRIPT_FILE)
+package.path                    = package.path
+    .. ";" .. script_dir .. '/?.lua;'
+    .. script_dir .. '/?/init.lua'
+local log_info                  = pandoc.log.info
+local log_warn                  = pandoc.log.warn
+
+local common                    = require("include-common")
+
+local FILTER_VERSION            = common.FILTER_VERSION
+local INCLUDE_DOC_CLASS         = common.INCLUDE_DOC_CLASS
+local INCLUDE_FORMAT_ATTR       = common.INCLUDE_FORMAT_ATTR
+local INCLUDE_SRC_ATTR          = common.INCLUDE_SRC_ATTR
+local INCLUDE_DOC_META_CLASS    = common.INCLUDE_DOC_META_CLASS
+local INCLUDE_INCLUDED_CLASS    = common.INCLUDE_INCLUDED_CLASS
+local INCLUDE_SHA1_ATTR         = common.INCLUDE_SHA1_ATTR
+local INCLUDE_DOC_SUB_META_FLAG = common.INCLUDE_DOC_SUB_META_FLAG
+local INCLUDE_DOC_SUB_META_VAR  = common.INCLUDE_DOC_SUB_META_VAR
+local INCLUDE_DOC_SUB_META_KEY  = common.INCLUDE_DOC_SUB_META_KEY
+local ROOT_ID_META_KEY          = common.ROOT_ID_META_KEY
+local ROOT_FORMAT_META_KEY      = common.ROOT_FORMAT_META_KEY
+local ROOT_SRC_META_KEY         = common.ROOT_SRC_META_KEY
+local ROOT_SHA1_META_KEY        = common.ROOT_SHA1_META_KEY
+local INCLUDE_ID_ATTR           = common.INCLUDE_ID_ATTR
+local INCLUDE_ID_PREFIX         = common.INCLUDE_ID_PREFIX
+local hasClass                  = common.hasClass
+local isInclusionDiv            = common.isInclusionDiv
+
+local SRC_STDIN                 = '__STDIN__'
 
 ---Compute the id of a document from its source, removing protocol, path and extension.
 ---@param src? string
@@ -67,7 +55,7 @@ local function idFromSrc(src)
 end
 
 --- The current source being parsed for documents inclusion.
-local current_src      = PANDOC_STATE.input_files[1]
+local current_src = PANDOC_STATE.input_files[1]
 if current_src == '-' then
   current_src = nil
 end
@@ -96,31 +84,8 @@ local root_sha1
 -- under the main document's metadata at the key specified by @{INCLUDE_DOC_SUB_META}
 local include_all_meta = VARIABLES[INCLUDE_DOC_SUB_META_VAR] or false
 
-local script_dir       = pandoc_path.directory(PANDOC_SCRIPT_FILE)
-package.path           = package.path
-    .. ";" .. script_dir .. '/?.lua;'
-    .. script_dir .. '/?/init.lua'
-local log_info     = pandoc.log.info
-local log_warn  = pandoc.log.warn
-
 if include_all_meta then
   log_warn('including metadata of included sub documents')
-end
-
----Check whether a Pandoc item with an `Attr` has a class.
----@param elem WithAttr The `Block` or `Inline` with an `Attr`.
----@param class string The class to look for among the ones in `Attr`'s classes.
----@return boolean
-local function hasClass(elem, class)
-  if elem and elem.attr and elem.attr.classes then
-    local classes = elem.attr.classes
-    for i = 1, #classes do
-      if classes[i] == class then
-        return true
-      end
-    end
-  end
-  return false
 end
 
 ---Fetch the contents of a source as a Pandoc document.
@@ -244,7 +209,7 @@ local function addToInclusions(parent_src, child_src)
   if not found then
     table_insert(includes[parent_src_index].subs, child_src_index)
   end
-  -- logging_info('addToInclusions, '..includesToString())
+  -- log_info('addToInclusions, '..includesToString())
 end
 
 ---Check whether the index of a source is already in a chain of documents' inclusions.
@@ -286,9 +251,9 @@ local function isCyclic(chain, depth)
   local chain, depth = chain or { 1 }, depth or 1
   local subs = includes[chain[#chain]].subs or {}
   -- local prefix = "isCyclic(depth=" .. depth .. ")"
-  -- logging_info(prefix .. ", " .. includesToString())
-  -- logging_info(prefix .. ", chain: " .. table_concat(chain, ' => '))
-  -- logging_info("subs of " .. chain[#chain] .. ": " .. table_concat(subs, ", "))
+  -- log_info(prefix .. ", " .. includesToString())
+  -- log_info(prefix .. ", chain: " .. table_concat(chain, ' => '))
+  -- log_info("subs of " .. chain[#chain] .. ": " .. table_concat(subs, ", "))
   if #subs > 0 then
     for j = 1, #subs do
       local in_chain, index_in_chain = isInChain(chain, subs[j])
@@ -310,34 +275,6 @@ local function isCyclic(chain, depth)
   return false
 end
 
----Check whether a `Div` is meant to include contents from an external source
----@param div Div The `Div` block to check.
----@return boolean is_inclusion_div
----@return string|nil source # The source (URI or path) of the included document.
----@return string|nil format # The format of the included document, when specified.
----@return boolean|nil # `true` when INCLUDE_DOC_CLASS is found.
-local function isInclusionDiv(div, log)
-  if not div.tag == "Div" then
-    return false
-  end
-  local src = div.attributes[INCLUDE_SRC_ATTR]
-  local has_include_doc_class = hasClass(div, INCLUDE_DOC_CLASS)
-  if src then
-    if log then
-      log_info('Div has a "' .. INCLUDE_SRC_ATTR .. '" attribute, but no "' .. INCLUDE_DOC_CLASS .. '" class')
-    end
-    local format = div.attributes[INCLUDE_FORMAT_ATTR] or pandoc.format.from_path(src)
-    if format then
-      return true, src, format, has_include_doc_class
-    elseif log then
-      log_warn('format not found for source "' .. src .. '"')
-    end
-  elseif log and has_include_doc_class then
-    log_warn('Div has "' .. INCLUDE_DOC_CLASS .. '" class, but no valid "' .. INCLUDE_SRC_ATTR .. '" attribute')
-  end
-  return false
-end
-
 --- A Pandoc filter to record all the inclusions of other sources (sub-documents).
 -- Div blocks are checked to see whether they are meant to include sub-documents.
 ---@type Filter
@@ -351,7 +288,7 @@ local find_inclusions_filter = {
     local is_inclusion_div, src, format = isInclusionDiv(div, true)
     if is_inclusion_div then
       if format and src then
-        -- logging_info('find_inclusions_filter, found "' .. src .. '"')
+        -- log_info('find_inclusions_filter, found "' .. src .. '"')
         addToInclusions(current_src, src)
       end
     end
@@ -384,7 +321,7 @@ local include_doc_filter = {
     local is_inclusion_div, src, format, has_include_doc_class = isInclusionDiv(div)
     if is_inclusion_div then
       if format and src then
-        -- logging_info('INCLUDING ' .. src .. ', FORMAT=' .. format)
+        -- log_info('INCLUDING ' .. src .. ', FORMAT=' .. format)
         local markup = srcToMarkup(src)
         if markup then
           local doc = pandoc.read(markup, format, { standalone = true })
