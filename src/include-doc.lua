@@ -100,13 +100,11 @@ local script_dir       = pandoc_path.directory(PANDOC_SCRIPT_FILE)
 package.path           = package.path
     .. ";" .. script_dir .. '/?.lua;'
     .. script_dir .. '/?/init.lua'
-local logging          = require("logging")
-local logging_info     = logging.info
-local logging_warning  = logging.warning
-local logging_error    = logging.error
+local log_info     = pandoc.log.info
+local log_warn  = pandoc.log.warn
 
 if include_all_meta then
-  logging_warning('including metadata of included sub documents')
+  log_warn('including metadata of included sub documents')
 end
 
 ---Check whether a Pandoc item with an `Attr` has a class.
@@ -131,7 +129,7 @@ end
 ---@return string|nil content # The file contents or nil when not successful.
 local function srcToMarkup(src)
   local status, mime, content = xpcall(pandoc.mediabag.fetch, function(err)
-    logging_warning('source "' .. src .. '" not included: ' .. tostring(err))
+    log_warn('source "' .. src .. '" not included: ' .. tostring(err))
   end, src)
   return content
 end
@@ -326,16 +324,16 @@ local function isInclusionDiv(div, log)
   local has_include_doc_class = hasClass(div, INCLUDE_DOC_CLASS)
   if src then
     if log then
-      logging_info('Div has a "' .. INCLUDE_SRC_ATTR .. '" attribute, but no "' .. INCLUDE_DOC_CLASS .. '" class')
+      log_info('Div has a "' .. INCLUDE_SRC_ATTR .. '" attribute, but no "' .. INCLUDE_DOC_CLASS .. '" class')
     end
     local format = div.attributes[INCLUDE_FORMAT_ATTR] or pandoc.format.from_path(src)
     if format then
       return true, src, format, has_include_doc_class
     elseif log then
-      logging_warning('format not found for source "' .. src .. '"')
+      log_warn('format not found for source "' .. src .. '"')
     end
   elseif log and has_include_doc_class then
-    logging_warning('Div has "' .. INCLUDE_DOC_CLASS .. '" class, but no valid "' .. INCLUDE_SRC_ATTR .. '" attribute')
+    log_warn('Div has "' .. INCLUDE_DOC_CLASS .. '" class, but no valid "' .. INCLUDE_SRC_ATTR .. '" attribute')
   end
   return false
 end
@@ -366,12 +364,12 @@ local include_doc_filter = {
   traverse = 'topdown',
 
   Pandoc = function(doc)
-    logging_info("pandoc include-doc.lua filter, version " .. FILTER_VERSION)
+    log_info("pandoc include-doc.lua filter, version " .. FILTER_VERSION)
   end,
 
   Meta = function(meta)
     if meta[INCLUDE_DOC_SUB_META_FLAG] then
-      logging_info(
+      log_info(
         '"'
         .. INCLUDE_DOC_SUB_META_FLAG
         .. "\" set to true in main document's metadata => all the included documents' metadata will be stored under the key \""
@@ -398,7 +396,7 @@ local include_doc_filter = {
             if do_include_src_meta and meta then
               meta.src = src
               incl.meta = meta
-              logging_info(
+              log_info(
                 '"'
                 .. INCLUDE_DOC_META_CLASS
                 .. "\" class found importing \"" .. src .. "\" => its metadata will be stored under the key \""
@@ -421,7 +419,7 @@ local include_doc_filter = {
             local is_cyclic, cycle = isCyclic()
             if is_cyclic then
               ---@diagnostic disable-next-line: param-type-mismatch
-              logging_error('ERROR, circular reference: ' .. cycleToString(cycle))
+              log_warn('ERROR, circular reference: ' .. cycleToString(cycle))
               return
             end
             return newDiv

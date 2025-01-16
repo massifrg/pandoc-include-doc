@@ -39,13 +39,10 @@ local FORMAT = FORMAT
 
 local table_insert = table.insert
 
--- add the directory of this script to the lua path to load logging.lua
 local script_dir = pandoc_path.directory(PANDOC_SCRIPT_FILE)
 package.path = package.path .. ";" .. script_dir .. '/?.lua;' .. script_dir .. '/?/init.lua'
-local logging = require("logging")
-local logging_info = logging.info
-local logging_warning = logging.warning
-local logging_error = logging.error
+local log_info = pandoc.log.info
+local log_warn = pandoc.log.warn
 
 ---Check whether a Pandoc item with an `Attr` has a class.
 ---@param elem WithAttr The `Block` or `Inline` with an `Attr`.
@@ -77,16 +74,16 @@ local function isInclusionDiv(div, log)
   local has_include_doc_class = hasClass(div, INCLUDE_DOC_CLASS)
   if src then
     if log then
-      logging_info('Div has a "' .. INCLUDE_SRC_ATTR .. '" attribute, but no "' .. INCLUDE_DOC_CLASS .. '" class')
+      log_info('Div has a "' .. INCLUDE_SRC_ATTR .. '" attribute, but no "' .. INCLUDE_DOC_CLASS .. '" class')
     end
     local format = div.attributes[INCLUDE_FORMAT_ATTR] or pandoc.format.from_path(src)
     if format then
       return true, src, format, has_include_doc_class
     elseif log then
-      logging_warning('format not found for source "' .. src .. '"')
+      log_warn('format not found for source "' .. src .. '"')
     end
   elseif log and has_include_doc_class then
-    logging_warning('Div has "' .. INCLUDE_DOC_CLASS .. '" class, but no valid "' .. INCLUDE_SRC_ATTR .. '" attribute')
+    log_warn('Div has "' .. INCLUDE_DOC_CLASS .. '" class, but no valid "' .. INCLUDE_SRC_ATTR .. '" attribute')
   end
   return false
 end

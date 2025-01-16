@@ -270,12 +270,4 @@ You'll get a JSON like this:
 
 ## Version
 
-The current version is 0.4.4 (2024, April 24th).
-
-## Aknowledgements
-
-This software
-
-- is a filter for [Pandoc](https://pandoc.org);
-
-- and makes use of William Lupton's [logging.lua](https://github.com/pandoc-ext/logging) module.
+The current version is 0.5 (2025, January 16th).
