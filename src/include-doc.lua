@@ -7,8 +7,10 @@ local PANDOC_WRITER_OPTIONS     = PANDOC_WRITER_OPTIONS
 local VARIABLES                 = PANDOC_WRITER_OPTIONS.variables
 local pandoc                    = pandoc
 local pandoc_path               = pandoc.path
-local string_gsub               = string.gsub
+local string_len                = string.len
 local string_match              = string.match
+local string_gsub               = string.gsub
+local string_sub                = string.sub
 local table_concat              = table.concat
 local table_insert              = table.insert
 local table_sort                = table.sort
@@ -26,6 +28,7 @@ local FILTER_VERSION            = common.FILTER_VERSION
 local INCLUDE_DOC_CLASS         = common.INCLUDE_DOC_CLASS
 local INCLUDE_FORMAT_ATTR       = common.INCLUDE_FORMAT_ATTR
 local INCLUDE_SRC_ATTR          = common.INCLUDE_SRC_ATTR
+local INCLUDE_FILTERS_ATTR      = common.INCLUDE_FILTERS_ATTR
 local INCLUDE_DOC_META_CLASS    = common.INCLUDE_DOC_META_CLASS
 local INCLUDE_INCLUDED_CLASS    = common.INCLUDE_INCLUDED_CLASS
 local INCLUDE_SHA1_ATTR         = common.INCLUDE_SHA1_ATTR
@@ -38,8 +41,10 @@ local ROOT_SRC_META_KEY         = common.ROOT_SRC_META_KEY
 local ROOT_SHA1_META_KEY        = common.ROOT_SHA1_META_KEY
 local INCLUDE_ID_ATTR           = common.INCLUDE_ID_ATTR
 local INCLUDE_ID_PREFIX         = common.INCLUDE_ID_PREFIX
+local customFormats             = common.customFormats
 local hasClass                  = common.hasClass
 local isInclusionDiv            = common.isInclusionDiv
+local filtersFromAttribute      = common.filtersFromAttribute
 
 local SRC_STDIN                 = '__STDIN__'
 
@@ -275,6 +280,54 @@ local function isCyclic(chain, depth)
   return false
 end
 
+---Load a subdocument.
+---@param src string
+---@param format_name string
+---@param readerOptions? ReaderOptions
+---@param filtersAttrValue? string
+---@return Pandoc|nil
+local function loadDocument(src, format_name, readerOptions, filtersAttrValue)
+  local doc
+  local markup = srcToMarkup(src)
+  local format, options, filters
+  local custom = customFormats[format_name]
+  if custom then
+    format = custom.reader
+    options = custom.options or readerOptions
+    filters = custom.filters or filtersFromAttribute(filtersAttrValue)
+  else
+    format = format_name
+    options = readerOptions
+    filters = filtersFromAttribute(filtersAttrValue)
+  end
+  if string_sub(format, string_len(format) - 3) == '.lua' then
+    local custom_reader = loadfile(format)
+    if custom_reader then
+      -- Create a separate environment
+      local newEnv = setmetatable({}, { __index = _G })
+      -- Set the new environment for the function using the debug library
+      debug.setupvalue(custom_reader, 1, newEnv)
+      -- Execute the function
+      custom_reader()
+      local reader = newEnv.Reader ---@type Reader
+      ---@diagnostic disable-next-line: param-type-mismatch
+      doc = reader(markup, options)
+    else
+      log_warn("Can't load the custom reader \"" .. format .. "\"")
+    end
+  else
+    doc = pandoc.read(markup, format, options)
+  end
+  -- apply optional filters
+  if doc and filters then
+    for i = 1, #filters do
+      local filter = filters[i]
+      -- TODO: load and apply filters
+    end
+  end
+  return doc
+end
+
 --- A Pandoc filter to record all the inclusions of other sources (sub-documents).
 -- Div blocks are checked to see whether they are meant to include sub-documents.
 ---@type Filter
@@ -322,9 +375,13 @@ local include_doc_filter = {
     if is_inclusion_div then
       if format and src then
         -- log_info('INCLUDING ' .. src .. ', FORMAT=' .. format)
-        local markup = srcToMarkup(src)
-        if markup then
-          local doc = pandoc.read(markup, format, { standalone = true })
+        local doc = loadDocument(
+          src,
+          format,
+          { standalone = true },
+          div.attributes[INCLUDE_FILTERS_ATTR]
+        )
+        if doc then
           local meta = doc.meta ---@type table
           local blocks = doc.blocks
           if blocks then

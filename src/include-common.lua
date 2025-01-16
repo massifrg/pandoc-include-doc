@@ -1,45 +1,70 @@
 --- This filter's version
-local FILTER_VERSION            = "0.5"
+local FILTER_VERSION              = "0.5"
 
-local log_info                  = pandoc.log.info
-local log_warn                  = pandoc.log.warn
+local string_find                 = string.find
+local string_gsub                 = string.gsub
+local string_len                  = string.len
+local string_sub                  = string.sub
+local table_insert                = table.insert
+local log_info                    = pandoc.log.info
+local log_warn                    = pandoc.log.warn
 
 --- The class for `Div` elements to see their contents replaced by the ones
 -- of the sources specified with @{INCLUDE_SRC_ATTR} and @{INCLUDE_FORMAT_ATTR}.
-local INCLUDE_DOC_CLASS         = "include-doc"
+local INCLUDE_DOC_CLASS           = "include-doc"
 --- The attribute for inclusion `Div`s that specifies the format of the document to be included.
-local INCLUDE_FORMAT_ATTR       = "include-format"
+local INCLUDE_FORMAT_ATTR         = "include-format"
 --- The attribute for inclusion `Div`s that specifies the source of the document to be included.
-local INCLUDE_SRC_ATTR          = "include-src"
+local INCLUDE_SRC_ATTR            = "include-src"
 --- The class for `Div` elements (that already have the @{INCLUDE_DOC_CLASS})
 -- to make the filter store also the metadata of the included documents.
-local INCLUDE_DOC_META_CLASS    = "include-meta"
+local INCLUDE_DOC_META_CLASS      = "include-meta"
 --- The class to add to `Div` elements that specify a sub-document inclusion,
 -- when the inclusion succeeds.
-local INCLUDE_INCLUDED_CLASS    = "included"
+local INCLUDE_INCLUDED_CLASS      = "included"
 --- The attribute that carries the SHA-1 of the imported contents, when the inclusion succeeds.
-local INCLUDE_SHA1_ATTR         = "include-sha1"
+local INCLUDE_SHA1_ATTR           = "include-sha1"
 --- The metadata key in the main document to tell the filter to store every imported document's
 -- metadata among the metadata of the resulting document.
-local INCLUDE_DOC_SUB_META_FLAG = "include-sub-meta"
---- the variable to use in the CLI to tell the filter to include sub-docs metadata
-local INCLUDE_DOC_SUB_META_VAR  = "include_sub_meta"
+local INCLUDE_DOC_SUB_META_FLAG   = "include-sub-meta"
+--- The optional attribute specifying the filters to be applied to the document to be included.
+local INCLUDE_FILTERS_ATTR        = "include-filters"
+--- The string separating multiple filters in the `INCLUDE_FILTERS_ATTR`.
+local INCLUDE_FILTERS_SEPARATOR   = ";"
+local SEPARATOR_LENGTH            = string_len(INCLUDE_FILTERS_SEPARATOR)
+--- The variable to use in the CLI to tell the filter to include sub-docs metadata
+local INCLUDE_DOC_SUB_META_VAR    = "include_sub_meta"
 --- The metadata key of the resulting document, carrying the metadata of imported documents.
-local INCLUDE_DOC_SUB_META_KEY  = "included-sub-meta"
+local INCLUDE_DOC_SUB_META_KEY    = "included-sub-meta"
 --- The metadata key (in the resulting doc) that stores the id of the root document contents
-local ROOT_ID_META_KEY          = "root_id"
+local ROOT_ID_META_KEY            = "root_id"
 --- The metadata key (in the resulting doc) that stores the format of the root document contents
-local ROOT_FORMAT_META_KEY      = "root_format"
+local ROOT_FORMAT_META_KEY        = "root_format"
 --- The metadata key (in the resulting doc) that stores the source of the root document contents
-local ROOT_SRC_META_KEY         = "root_src"
+local ROOT_SRC_META_KEY           = "root_src"
 --- The metadata key (in the resulting doc) that stores the SHA1 of the root document contents
-local ROOT_SHA1_META_KEY        = "root_sha1"
+local ROOT_SHA1_META_KEY          = "root_sha1"
 --- The attribute with the identifier that this filter assigns to an imported document.
 -- It's equal to the sub-key of @{INCLUDE_DOC_SUB_META_KEY} that contains the sub-document metadata
 -- in the resulting document.
-local INCLUDE_ID_ATTR           = "included-id"
+local INCLUDE_ID_ATTR             = "included-id"
 --- The prefix used for the values of the @{INCLUDE_ID_ATTR} attribute.
-local INCLUDE_ID_PREFIX         = "included_"
+local INCLUDE_ID_PREFIX           = "included_"
+--- The variable to be passed as JSON in pandoc cli to specify custom readers/formats
+--- and/or filters for documents to be included.
+local INCLUDE_DOC_FORMAT_VARIABLE = "formats"
+
+---@class CustomFormat
+---@field reader string The filename of a custom reader or the name of a Pandoc format.
+---@field options ReaderOptions The reader options to be used with the custom reader.
+---@field filters string[] An array of filters to be applied to the document before inclusion.
+
+local variables                   = PANDOC_WRITER_OPTIONS.variables or {}
+local formats_as_json             = variables[INCLUDE_DOC_FORMAT_VARIABLE] or '{}'
+---@type table<string,CustomFormat>
+local customFormats               = formats_as_json
+    and pandoc.json.decode(tostring(formats_as_json), false)
+    or {}
 
 ---Check whether a Pandoc item with an `Attr` has a class.
 ---@param elem WithAttr The `Block` or `Inline` with an `Attr`.
@@ -85,24 +110,57 @@ local function isInclusionDiv(div, log)
   return false
 end
 
+---Extract (Lua) filters from an attribute in the Div that specifies an inclusion.
+---@param filtersAttrValue? string
+---@return string[]
+local function filtersFromAttribute(filtersAttrValue)
+  local filters = {}
+  if filtersAttrValue then
+    local s = filtersAttrValue
+    local index, filter
+    while s and string_len(s) > 0 do
+      index = string_find(s, INCLUDE_FILTERS_SEPARATOR)
+      if index then
+        filter = string_sub(s, 1, index - 1)
+      else
+        filter = s
+      end
+      filter = string_gsub(filter, "^ +", "")
+      filter = string_gsub(filter, " +$", "")
+      if string_len(filter) > 0 then
+        table_insert(filters, filter)
+      end
+      if index then
+        s = string_sub(s, index + SEPARATOR_LENGTH)
+      else
+        break
+      end
+    end
+  end
+  return filters
+end
 
 return {
-  FILTER_VERSION            = FILTER_VERSION,
-  INCLUDE_DOC_CLASS         = INCLUDE_DOC_CLASS,
-  INCLUDE_FORMAT_ATTR       = INCLUDE_FORMAT_ATTR,
-  INCLUDE_SRC_ATTR          = INCLUDE_SRC_ATTR,
-  INCLUDE_DOC_META_CLASS    = INCLUDE_DOC_META_CLASS,
-  INCLUDE_INCLUDED_CLASS    = INCLUDE_INCLUDED_CLASS,
-  INCLUDE_SHA1_ATTR         = INCLUDE_SHA1_ATTR,
-  INCLUDE_DOC_SUB_META_FLAG = INCLUDE_DOC_SUB_META_FLAG,
-  INCLUDE_DOC_SUB_META_VAR  = INCLUDE_DOC_SUB_META_VAR,
-  INCLUDE_DOC_SUB_META_KEY  = INCLUDE_DOC_SUB_META_KEY,
-  ROOT_ID_META_KEY          = ROOT_ID_META_KEY,
-  ROOT_FORMAT_META_KEY      = ROOT_FORMAT_META_KEY,
-  ROOT_SRC_META_KEY         = ROOT_SRC_META_KEY,
-  ROOT_SHA1_META_KEY        = ROOT_SHA1_META_KEY,
-  INCLUDE_ID_ATTR           = INCLUDE_ID_ATTR,
-  INCLUDE_ID_PREFIX         = INCLUDE_ID_PREFIX,
-  hasClass                  = hasClass,
-  isInclusionDiv            = isInclusionDiv
+  FILTER_VERSION              = FILTER_VERSION,
+  INCLUDE_DOC_CLASS           = INCLUDE_DOC_CLASS,
+  INCLUDE_FORMAT_ATTR         = INCLUDE_FORMAT_ATTR,
+  INCLUDE_SRC_ATTR            = INCLUDE_SRC_ATTR,
+  INCLUDE_DOC_META_CLASS      = INCLUDE_DOC_META_CLASS,
+  INCLUDE_INCLUDED_CLASS      = INCLUDE_INCLUDED_CLASS,
+  INCLUDE_SHA1_ATTR           = INCLUDE_SHA1_ATTR,
+  INCLUDE_FILTERS_ATTR        = INCLUDE_FILTERS_ATTR,
+  INCLUDE_DOC_SUB_META_FLAG   = INCLUDE_DOC_SUB_META_FLAG,
+  INCLUDE_DOC_SUB_META_VAR    = INCLUDE_DOC_SUB_META_VAR,
+  INCLUDE_DOC_SUB_META_KEY    = INCLUDE_DOC_SUB_META_KEY,
+  ROOT_ID_META_KEY            = ROOT_ID_META_KEY,
+  ROOT_FORMAT_META_KEY        = ROOT_FORMAT_META_KEY,
+  ROOT_SRC_META_KEY           = ROOT_SRC_META_KEY,
+  ROOT_SHA1_META_KEY          = ROOT_SHA1_META_KEY,
+  INCLUDE_ID_ATTR             = INCLUDE_ID_ATTR,
+  INCLUDE_ID_PREFIX           = INCLUDE_ID_PREFIX,
+  INCLUDE_DOC_FORMAT_VARIABLE = INCLUDE_DOC_FORMAT_VARIABLE,
+  customFormats               = customFormats,
+  hasClass                    = hasClass,
+  isInclusionDiv              = isInclusionDiv,
+  filtersFromAttribute        = filtersFromAttribute,
 }
