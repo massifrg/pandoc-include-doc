@@ -6,17 +6,35 @@ with [Lua Language Server](https://luals.github.io).
 Just put the following line in your sources to get help about types by LuaLs:
 ---@module "pandoc-types-annotations"
 
-This is version 0.1.1; you can look for updates of this file at:
+You can look for updates of this file at:
 https://raw.githubusercontent.com/massifrg/pandoc-luals-annotations/main/src/pandoc-types-annotations.lua
-]]--
+]] --
+
+---@alias Predicate<T> fun(t: T): boolean
+---@alias MapFunction<T,U> fun(t: T): U
+---@alias Comparator<T> fun(a: T, b: T): boolean
 
 ---@class List<T>: {[integer]: T} A Pandoc List.
+---@field at fun(self: List<`T`>, index: integer, default?: `T`): `T`
+---@field clone fun(self: List<`T`>): List<`T`>
+---@field extend fun(self: List<`T`>, list: List<`T`>)
+---@field find fun(self: List<`T`>, needle: `T`, init?: integer): `T`|nil,integer|nil
+---@field find_if fun(self: List<`T`>, predicate: Predicate<`T`>, init?: integer): `T`|nil,integer|nil
+---@field filter fun(self: List<`T`>, predicate: Predicate<`T`>): List<`T`>
+---@field includes fun(self: List<`T`>, needle: `T`, init?: integer): boolean
+---@field insert fun(self: List<`T`>, pos: integer, value: `T`)
+---@field insert fun(self: List<`T`>, value: `T`)
+---@field iter fun(self: List<`T`>, step?: integer): IteratorFunction
+---@field map fun(self: List<`T`>, f: MapFunction<`T`,`U`>): List<`U`>
+---@field new fun(self: List<`T`>, t?: table<`T`>):List<`T`>
+---@field remove fun(self: List<`T`>, pos?: integer)
+---@field sort fun(self: List<`T`>, comparator: Comparator<`T`>)
 
 ---@class EmptyList An empty List.
 
 ---@class Attr A Pandoc `Attr` data structure.
 ---@field identifier string
----@field classes    string[]
+---@field classes    List<string>
 ---@field attributes table<string,string>
 
 ---@class WithTag
@@ -28,15 +46,23 @@ https://raw.githubusercontent.com/massifrg/pandoc-luals-annotations/main/src/pan
 
 ---@class Block: WithTag A Pandoc `Block`.
 ---@field content List The content of the Block.
+---@field walk fun(self: Block, filter: Filter)
 
 ---@class Inline: WithTag A Pandoc `Inline`.
 ---@field content List The content of the Inline.
+---@field walk fun(self: Inline, filter: Filter)
 
----@alias Blocks List<Block>
----@alias Inlines List<Inline>
+---@class Blocks: List<Block>
+---@field walk fun(self: Blocks, filter: Filter)
+
+---@class Inlines: List<Inlines>
+---@field walk fun(self: Inlines, filter: Filter)
+
+---@alias BlockWithAttr Header|Div|Figure|Table|CodeBlock
+---@alias InlineWithAttr Span|Code|Link|Image
 
 ---@class Plain: Block A Pandoc `Plain`.
----@field content Blocks
+---@field content Inlines
 
 ---@class Para: Block A Pandoc `Para`.
 ---@field content Inlines
@@ -212,7 +238,7 @@ https://raw.githubusercontent.com/massifrg/pandoc-luals-annotations/main/src/pan
 ---@class Span: Inline,WithAttr A Pandoc `Span`.
 ---@field content Inlines
 
----@class Meta
+---@alias Meta table<string,MetaValue>
 
 ---@class MetaBool
 ---@field bool boolean
@@ -237,6 +263,7 @@ https://raw.githubusercontent.com/massifrg/pandoc-luals-annotations/main/src/pan
 ---@class Pandoc
 ---@field blocks Blocks
 ---@field meta Meta
+---@field walk fun(self: Pandoc, filter: Filter)
 
 ---@class ChunkedDoc
 ---@field chunks Chunk[] List of chunks that make up the document.
@@ -256,46 +283,47 @@ https://raw.githubusercontent.com/massifrg/pandoc-luals-annotations/main/src/pan
 ---@field unlisted boolean Whether the section in this chunk should be listed in the TOC even if the chunk has no section number.
 ---@field contents Block[] The chunk’s block contents.
 
----@alias InlineFilterResult nil|Inline|Inlines|EmptyList
----@alias BlockFilterResult nil|Block|Blocks|EmptyList
+---@alias InlineFilterResult nil|Inline|Inlines|EmptyList|List<Inlines>
+---@alias BlockFilterResult nil|Block|Blocks|EmptyList|List<Blocks>
 
 ---@class Filter
 ---@field traverse?       "topdown"|"typewise" Traversal order of this filter (default: `typewise`).
----@field Pandoc?         fun(doc: Pandoc): Pandoc|nil `nil` = leave untouched.
----@field Blocks?         fun(blocks: List): BlockFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Inlines?        fun(inlines: List): BlockFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Plain?          fun(plain: Plain): BlockFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Para?           fun(para: Para): BlockFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field LineBlock?      fun(lineblock: LineBlock): BlockFilterResult `nil` = leave untouched, `EmptyList` = delete.
+---@field Pandoc?         fun(doc: Pandoc, meta?: Meta): Pandoc|nil `nil` = leave untouched.
+---@field Blocks?         fun(blocks: Blocks): BlockFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field Inlines?        fun(inlines: Inlines): BlockFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field Plain?          fun(plain: Plain): BlockFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field Para?           fun(para: Para): BlockFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field LineBlock?      fun(lineblock: LineBlock): BlockFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
 ---@field RawBlock?       fun(rawblock: RawBlock): BlockFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field OrderedList?    fun(orderedlist: OrderedList): BlockFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field BulletList?     fun(bulletlist: BulletList): BlockFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field DefinitionList? fun(definitionlist: DefinitionList): BlockFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Header?         fun(header: Header): BlockFilterResult `nil` = leave untouched, `EmptyList` = delete. `nil` = leave untouched, `EmptyList` = delete.
+---@field CodeBlock?      fun(codeblock: CodeBlock): BlockFilterResult `nil` = leave untouched, `EmptyList` = delete.
+---@field OrderedList?    fun(orderedlist: OrderedList): BlockFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field BulletList?     fun(bulletlist: BulletList): BlockFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field DefinitionList? fun(definitionlist: DefinitionList): BlockFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field Header?         fun(header: Header): BlockFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete. `nil` = leave untouched, `EmptyList` = delete.
 ---@field HorizontalRule? fun(): BlockFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Table?          fun(table: Table): BlockFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Figure?         fun(figure: Figure): BlockFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Div?            fun(div: Div): BlockFilterResult `nil` = leave untouched, `EmptyList` = delete.
+---@field Table?          fun(table: Table): BlockFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field Figure?         fun(figure: Figure): BlockFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field Div?            fun(div: Div): BlockFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
 ---@field Str?            fun(str: Str): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Emph?           fun(emph: Emph): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Underline?      fun(underline: Underline): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Strong?         fun(strong: Strong): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Strikeout?      fun(strikeout: Strikeout): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Superscript?    fun(superscript: Superscript): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Subscript?      fun(subscript: Subscript): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field SmallCaps?      fun(smallcaps: SmallCaps): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Quoted?         fun(quoted: Quoted): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Cite?           fun(cite: Cite): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
+---@field Emph?           fun(emph: Emph): InlineFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field Underline?      fun(underline: Underline): InlineFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field Strong?         fun(strong: Strong): InlineFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field Strikeout?      fun(strikeout: Strikeout): InlineFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field Superscript?    fun(superscript: Superscript): InlineFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field Subscript?      fun(subscript: Subscript): InlineFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field SmallCaps?      fun(smallcaps: SmallCaps): InlineFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field Quoted?         fun(quoted: Quoted): InlineFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field Cite?           fun(cite: Cite): InlineFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
 ---@field Code?           fun(code: Code): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
 ---@field Space?          fun(): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
 ---@field SoftBreak?      fun(): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
 ---@field LineBreak?      fun(): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
 ---@field Math?           fun(math: Math): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
 ---@field RawInline?      fun(rawinline: RawInline): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Link?           fun(link: Link): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Image?          fun(image: Image): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Note?           fun(note: Note): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
----@field Span?           fun(span: Span): InlineFilterResult `nil` = leave untouched, `EmptyList` = delete.
+---@field Link?           fun(link: Link): InlineFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field Image?          fun(image: Image): InlineFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field Note?           fun(note: Note): InlineFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
+---@field Span?           fun(span: Span): InlineFilterResult,boolean? `nil` = leave untouched, `EmptyList` = delete.
 
 ---@class Template An opaque object holding a compiled template.
 
@@ -471,6 +499,7 @@ https://raw.githubusercontent.com/massifrg/pandoc-luals-annotations/main/src/pan
 ---@field format PandocFormatModule
 ---@field json PandocJsonModule
 ---@field layout PandocLayoutModule
+---@field log PandocLogModule
 ---@field mediabag PandocMediabagModule
 ---@field path PandocPathModule
 ---@field pipe fun(command: string, args: string[], input: string): string
@@ -562,6 +591,11 @@ https://raw.githubusercontent.com/massifrg/pandoc-luals-annotations/main/src/pan
 ---@field space userdata A breaking (reflowable) space.
 ---@field update_column fun(doc: Doc, i: integer): integer|string Returns the column that would be occupied by the last laid out character, starting from `i`.
 ---@field vfill fun(border: string): Doc An expandable border that, when placed next to a box, expands to the height of the box. Strings cycle through the list provided.
+
+---@class PandocLogModule
+---@field info fun(message: string) Reports a ScriptingInfo message to pandoc’s logging system.
+---@field silence fun(fn: function): List<string> Applies the function to the given arguments while preventing log messages from being added to the log. 
+---@field warn fun(message: string) Reports a ScriptingWarning to pandoc’s logging system. The warning will be printed to stderr unless logging verbosity has been set to ERROR.
 
 ---@class IteratorState An opaque value to be passed to the iterator function.
 
@@ -658,9 +692,10 @@ https://raw.githubusercontent.com/massifrg/pandoc-luals-annotations/main/src/pan
 
 ---Handle pandoc templates.
 ---@class PandocTemplateModule
----@field apply fun(template: Template, context: table): Pandoc Applies a context with variable assignments to a template, returning the rendered template. The context parameter must be a table with variable names as keys and `Doc`, `string`, `boolean`, or `table` as values, where the table can be either be a list of the aforementioned types, or a nested context.
+---@field apply fun(template: Template, context: table): Doc Applies a context with variable assignments to a template, returning the rendered template. The context parameter must be a table with variable names as keys and `Doc`, `string`, `boolean`, or `table` as values, where the table can be either be a list of the aforementioned types, or a nested context.
 ---@field compile fun(template: string, templates_path?: string[]): Template Compiles a template string into a Template object usable by pandoc. If the `templates_path` parameter is specified, should be the file path associated with the template. It is used when checking for partials. Partials will be taken only from the default data files if this parameter is omitted.
----@field default fun(writer?: string): Template Returns the default template for a given writer as a string. An error if no such template can be found. `writer` defaults to the global `FORMAT`.
+---@field default fun(writer?: string): string Returns the default template for a given writer as a string. An error if no such template can be found. `writer` defaults to the global `FORMAT`.
+---@field get fun(filename: string): string Retrieve text for a template. This function first checks the resource paths for a file of this name; if none is found, the templates directory in the user data directory is checked. Returns the content of the file, or throws an error if no file is found.
 ---@field meta_to_context fun(meta: Meta, blocks_writer: BlocksWriter, inlines_writer: InlinesWriter) Creates template context from the document’s Meta data, using the given functions to convert `Blocks` and `Inlines` to `Doc` values.
 
 ---Constructors for types which are not part of the pandoc AST.
