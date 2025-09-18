@@ -1,5 +1,5 @@
 --- This filter's version
-local FILTER_VERSION              = "0.5"
+local FILTER_VERSION              = "0.6"
 
 local string_find                 = string.find
 local string_gsub                 = string.gsub
@@ -59,7 +59,7 @@ local INCLUDE_DOC_FORMAT_VARIABLE = "formats"
 ---@field options ReaderOptions The reader options to be used with the custom reader.
 ---@field filters string[] An array of filters to be applied to the document before inclusion.
 
-local variables                   = PANDOC_WRITER_OPTIONS.variables or {}
+local variables                   = PANDOC_WRITER_OPTIONS and PANDOC_WRITER_OPTIONS.variables or {}
 local formats_as_json             = variables[INCLUDE_DOC_FORMAT_VARIABLE] or '{}'
 ---@type table<string,CustomFormat>
 local customFormats               = formats_as_json

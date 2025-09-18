@@ -3,8 +3,8 @@
 ---@module "pandoc-types-annotations"
 
 local PANDOC_STATE              = PANDOC_STATE
-local PANDOC_WRITER_OPTIONS     = PANDOC_WRITER_OPTIONS
-local VARIABLES                 = PANDOC_WRITER_OPTIONS.variables
+local PANDOC_WRITER_OPTIONS     = PANDOC_WRITER_OPTIONS or {}
+local VARIABLES                 = PANDOC_WRITER_OPTIONS.variables or {}
 local pandoc                    = pandoc
 local pandoc_path               = pandoc.path
 local string_len                = string.len
