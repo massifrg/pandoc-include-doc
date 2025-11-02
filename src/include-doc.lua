@@ -289,6 +289,9 @@ end
 local function loadDocument(src, format_name, readerOptions, filtersAttrValue)
   local doc
   local markup = srcToMarkup(src)
+  if not markup then
+    return
+  end
   local format, options, filters
   local custom = customFormats[format_name]
   if custom then
@@ -300,6 +303,7 @@ local function loadDocument(src, format_name, readerOptions, filtersAttrValue)
     options = readerOptions
     filters = filtersFromAttribute(filtersAttrValue)
   end
+  -- format or custom reader?
   if string_sub(format, string_len(format) - 3) == '.lua' then
     local custom_reader = loadfile(format)
     if custom_reader then
@@ -316,7 +320,14 @@ local function loadDocument(src, format_name, readerOptions, filtersAttrValue)
       log_warn("Can't load the custom reader \"" .. format .. "\"")
     end
   else
-    doc = pandoc.read(markup, format, options)
+    local success, doc_or_error = pcall(function()
+      return pandoc.read(markup, format, options)
+    end)
+    if success then
+      doc = doc_or_error
+    else
+      log_warn(doc_or_error)
+    end
   end
   -- apply optional filters
   if doc and filters then
