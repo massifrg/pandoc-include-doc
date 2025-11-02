@@ -1,5 +1,5 @@
 --- This filter's version
-local FILTER_VERSION              = "0.6"
+local FILTER_VERSION              = "0.6.1"
 
 local string_find                 = string.find
 local string_gsub                 = string.gsub

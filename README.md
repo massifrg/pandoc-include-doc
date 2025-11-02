@@ -270,4 +270,4 @@ You'll get a JSON like this:
 
 ## Version
 
-The current version is 0.6 (2025, September 18th).
+The current version is 0.6.1 (2025, November 2nd).
