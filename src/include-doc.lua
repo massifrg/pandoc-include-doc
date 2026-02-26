@@ -7,8 +7,11 @@ local PANDOC_WRITER_OPTIONS     = PANDOC_WRITER_OPTIONS or {}
 local VARIABLES                 = PANDOC_WRITER_OPTIONS.variables or {}
 local pandoc                    = pandoc
 local pandoc_path               = pandoc.path
+local List                      = pandoc.List
+local Para                      = pandoc.Para
 local string_len                = string.len
 local string_match              = string.match
+local string_gmatch             = string.gmatch
 local string_gsub               = string.gsub
 local string_sub                = string.sub
 local table_concat              = table.concat
@@ -32,6 +35,8 @@ local INCLUDE_FILTERS_ATTR      = common.INCLUDE_FILTERS_ATTR
 local INCLUDE_DOC_META_CLASS    = common.INCLUDE_DOC_META_CLASS
 local INCLUDE_INCLUDED_CLASS    = common.INCLUDE_INCLUDED_CLASS
 local INCLUDE_SHA1_ATTR         = common.INCLUDE_SHA1_ATTR
+local INCLUDE_PICK_ID_ATTR      = common.INCLUDE_PICK_ID_ATTR
+local INCLUDE_PICK_CLASSES_ATTR = common.INCLUDE_PICK_CLASSES_ATTR
 local INCLUDE_DOC_SUB_META_FLAG = common.INCLUDE_DOC_SUB_META_FLAG
 local INCLUDE_DOC_SUB_META_VAR  = common.INCLUDE_DOC_SUB_META_VAR
 local INCLUDE_DOC_SUB_META_KEY  = common.INCLUDE_DOC_SUB_META_KEY
@@ -102,6 +107,19 @@ local function srcToMarkup(src)
     log_warn('source "' .. src .. '" not included: ' .. tostring(err))
   end, src)
   return content
+end
+
+---Convert a string of space-separated words into a `pandoc.List` of strings.
+---@param s? string
+---@return List<string>
+local function stringToWordsList(s)
+  local words = List()
+  if s then
+    for word in string_gmatch(s, "%S+") do
+      words:insert(word)
+    end
+  end
+  return words
 end
 
 ---Looks for a source in the @{includes} array and appends it if it's not there yet.
@@ -280,13 +298,31 @@ local function isCyclic(chain, depth)
   return false
 end
 
+---Checks if the first list contains at least one string that is also in the second list.
+---@param classes List<string> The first list, where at least one string should also be in the second one.
+---@param matching_classes List<string> The list to check against.
+---@return boolean
+local function matchAtLeastOneClass(classes, matching_classes)
+  for i = 1, #classes do
+    if matching_classes:includes(classes[i]) then
+      return true
+    end
+  end
+  return false
+end
+
+---@class SelectElements
+---@field id? string
+---@field classes? List<string>
+
 ---Load a subdocument.
 ---@param src string
 ---@param format_name string
 ---@param readerOptions? ReaderOptions
 ---@param filtersAttrValue? string
+---@param select? SelectElements
 ---@return Pandoc|nil
-local function loadDocument(src, format_name, readerOptions, filtersAttrValue)
+local function loadDocument(src, format_name, readerOptions, filtersAttrValue, select)
   local doc
   local markup = srcToMarkup(src)
   if not markup then
@@ -334,6 +370,68 @@ local function loadDocument(src, format_name, readerOptions, filtersAttrValue)
     for i = 1, #filters do
       local filter = filters[i]
       -- TODO: load and apply filters
+    end
+  end
+  -- if INCLUDE_ID_ATTR or INCLUDE_CLASSES_ATTR is specified,
+  -- select only the matching Blocks or Inlines with that id or at least 1 matching class.
+  if select and (select.id or select.classes) then
+    local matching_id = select.id
+    local matching_classes = select.classes
+    if matching_id then
+      log_warn('picking the element with id="' .. matching_id .. '"')
+    end
+    if matching_classes then
+      log_warn('picking the elements with at least one of the classes: ' ..
+        table_concat(matching_classes, ',') .. '"')
+    end
+    local blocks = pandoc.List()
+    doc:walk({
+      Blocks = function(bb)
+        for j = 1, #bb do
+          local b = bb[j]
+          local tag = b.tag
+          if tag == 'Div' or tag == 'Header' or tag == 'Table' or tag == 'Figure' or tag == 'CodeBlock' then
+            local is_matching = false
+            if b.identifier == matching_id then
+              is_matching = true
+            end
+            if not is_matching and matching_classes then
+              if matchAtLeastOneClass(b.classes, matching_classes) then
+                is_matching = true
+              end
+            end
+            if is_matching then
+              blocks:insert(b)
+            end
+          end
+        end
+      end,
+      Inlines = function(ii)
+        for j = 1, #ii do
+          local i = ii[j]
+          local tag = i.tag
+          if tag == 'Span' or tag == 'Link' or tag == 'Image' or tag == 'Code' then
+            local is_matching = false
+            if i.identifier == matching_id then
+              is_matching = true
+            end
+            if not is_matching and matching_classes then
+              if matchAtLeastOneClass(i.classes, matching_classes) then
+                is_matching = true
+              end
+            end
+            if is_matching then
+              blocks:insert(Para({ i }))
+            end
+          end
+        end
+      end
+    })
+    -- return a list of blocks only if there is a match, otherwise return nil
+    if #blocks > 0 then
+      return pandoc.Pandoc(blocks)
+    else
+      return nil
     end
   end
   return doc
@@ -386,11 +484,17 @@ local include_doc_filter = {
     if is_inclusion_div then
       if format and src then
         -- log_info('INCLUDING ' .. src .. ', FORMAT=' .. format)
+        local include_classes = div.attributes[INCLUDE_PICK_CLASSES_ATTR]
+        local matching_classes = include_classes and stringToWordsList(include_classes) or nil
         local doc = loadDocument(
           src,
           format,
           { standalone = true },
-          div.attributes[INCLUDE_FILTERS_ATTR]
+          div.attributes[INCLUDE_FILTERS_ATTR],
+          {
+            id = div.attributes[INCLUDE_PICK_ID_ATTR],
+            classes = matching_classes
+          }
         )
         if doc then
           local meta = doc.meta ---@type table

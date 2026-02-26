@@ -68,6 +68,18 @@ specifying the class `include-doc` and the `include-format` attribute for every 
 pandoc --verbose -f html -t markdown -s -L ../src/include-doc.lua master-with-less-attributes.html
 ```
 
+## A test of inclusion of single elements picked by id or class from a sub-document
+
+```sh
+pandoc --verbose -f markdown -t markdown -s -L ../src/include-doc.lua master-pick-elements.md
+```
+
+The next one removes the inclusion Divs:
+
+```sh
+pandoc --verbose -f markdown -t markdown -s -L ../src/include-doc.lua master-pick-elements.md
+```
+
 ## Testing `inclusion.tree.lua`
 
 `inclusion-tree.lua` is a custom writer/filter to extract the structure of documents' inclusion.

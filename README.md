@@ -216,6 +216,38 @@ If the format is not identified, the source contents will not be included in the
 
 The `include-doc` class will be added, if not present.
 
+## Cherry-picking blocks or inlines instead of including whole documents
+
+When you specify `include-pick-id` and/or `include-pick-classes` along with `include-doc`,
+you can include only some `Blocks` or `Inlines` of a sub-document, instead of the whole doc:
+
+- with `include-pick-id` you specify the identifier of the Block or Inline
+  you want to include
+
+- with `include-pick-classes` you specify a space-separated list of classes:
+  if an element has at least one of those classes, it gets included
+
+- the inclusion is only for elements that have an `Attr`: `Div`, `Header`, `Table`,
+  `Figure` and `CodeBlock` blocks; `Span`, `Header`, `Image` and `Code` inlines
+
+- since the replacement must be a list of blocks, every selected inline is embedded
+  in a `Para` block
+
+- if there's no block or inline matching, no inclusion takes place and the placeholder text
+  is kept untouched
+
+### Example use case
+
+You could prepare a document that is a repository of all the tables of a book of yours,
+and put inclusion Divs inside your main document or chapters, that cherry-pick single 
+tables by their identifier.
+
+You may have the main document in markdown and the tables in a HTML file, so to get the
+most of the features of each format, and then compile the whole thing in a PDF made
+with LaTeX or ConTeXt.
+
+Also, a person could work on the main text, while another one would refine the tables.
+
 ## Extracting the structure of inclusions with `inclusion-tree.lua`
 
 `inclusion-tree.lua` is a custom writer and it's used to retrieve the tree structure
@@ -270,4 +302,4 @@ You'll get a JSON like this:
 
 ## Version
 
-The current version is 0.6.1 (2025, November 2nd).
+The current version is 0.7.0 (2026, February 26th).

@@ -1,5 +1,5 @@
 --- This filter's version
-local FILTER_VERSION              = "0.6.1"
+local FILTER_VERSION              = "0.7.0"
 
 local string_find                 = string.find
 local string_gsub                 = string.gsub
@@ -16,6 +16,10 @@ local INCLUDE_DOC_CLASS           = "include-doc"
 local INCLUDE_FORMAT_ATTR         = "include-format"
 --- The attribute for inclusion `Div`s that specifies the source of the document to be included.
 local INCLUDE_SRC_ATTR            = "include-src"
+--- Specifies the id of the element to be included instead of the whole document.
+local INCLUDE_PICK_ID_ATTR        = "include-pick-id"
+--- Specifies the classes of the elements to be included instead of the whole document.
+local INCLUDE_PICK_CLASSES_ATTR   = "include-pick-classes"
 --- The class for `Div` elements (that already have the @{INCLUDE_DOC_CLASS})
 -- to make the filter store also the metadata of the included documents.
 local INCLUDE_DOC_META_CLASS      = "include-meta"
@@ -149,6 +153,8 @@ return {
   INCLUDE_INCLUDED_CLASS      = INCLUDE_INCLUDED_CLASS,
   INCLUDE_SHA1_ATTR           = INCLUDE_SHA1_ATTR,
   INCLUDE_FILTERS_ATTR        = INCLUDE_FILTERS_ATTR,
+  INCLUDE_PICK_ID_ATTR        = INCLUDE_PICK_ID_ATTR,
+  INCLUDE_PICK_CLASSES_ATTR   = INCLUDE_PICK_CLASSES_ATTR,
   INCLUDE_DOC_SUB_META_FLAG   = INCLUDE_DOC_SUB_META_FLAG,
   INCLUDE_DOC_SUB_META_VAR    = INCLUDE_DOC_SUB_META_VAR,
   INCLUDE_DOC_SUB_META_KEY    = INCLUDE_DOC_SUB_META_KEY,

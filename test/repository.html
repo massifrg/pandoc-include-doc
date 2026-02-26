@@ -1,0 +1,61 @@
+<html>
+  <body>
+    <h1 id="repository-title">
+      A repository of elements to be cherry-picked with pandoc-include-doc
+    </h1>
+    <h2 id="tables-title">Tables</h2>
+    <table id="table_A" class="two-cols-table">
+      <tbody>
+        <tr>
+          <th>A1</th>
+          <th>A2</th>
+        </tr>
+        <tr>
+          <td>1</td>
+          <td>2</td>
+        </tr>
+      </tbody>
+    </table>
+    <table id="table_B" class="two-cols-table">
+      <tbody>
+        <tr>
+          <th>B1</th>
+          <th><span class="mark">B2</span></th>
+        </tr>
+        <tr>
+          <td>1</td>
+          <td>2</td>
+        </tr>
+      </tbody>
+    </table>
+    <table id="table_C">
+      <tbody>
+        <tr>
+          <th><span class="mark">C1</span></th>
+          <th>C2</th>
+          <th>C3</th>
+        </tr>
+        <tr>
+          <td>1</td>
+          <td>2</td>
+          <td>3</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="mark">
+      <h4>Figure 1</h4>
+      <figure id="figure_1">
+        <img src="https://github.com/jgm/pandoc/blob/main/test/lalune.jpg" />
+      </figure>
+    </div>
+    <div id="chapter_11">
+      <h3>Chapter 11</h3>
+      <p>
+        This <span class="mark">paragraph</span> is the first of
+        <span class="mark"><em>chapter 11</em></span
+        >.
+      </p>
+      <p>Another paragraph of the same chapter.</p>
+    </div>
+  </body>
+</html>
