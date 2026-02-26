@@ -236,6 +236,8 @@ you can include only some `Blocks` or `Inlines` of a sub-document, instead of th
 - if there's no block or inline matching, no inclusion takes place and the placeholder text
   is kept untouched
 
+See the `master-pick-elements.md` example in the `test` directory.
+
 ### Example use case
 
 You could prepare a document that is a repository of all the tables of a book of yours,
