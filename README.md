@@ -305,4 +305,4 @@ You'll get a JSON like this:
 
 ## Version
 
-The current version is 0.7.0 (2026, February 26th).
+The current version is 0.7.1 (2026, October 14th).
