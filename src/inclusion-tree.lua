@@ -6,6 +6,7 @@ local PANDOC_STATE              = PANDOC_STATE
 local pandoc                    = pandoc
 local pandoc_path               = pandoc.path
 local FORMAT                    = FORMAT
+local stringify                 = pandoc.utils.stringify
 
 local table_insert              = table.insert
 
@@ -40,6 +41,23 @@ local filters                   = { inclusion_tree_filter = nil }
 local base                      = {}
 local current_container         = base ---@type Container
 
+local function setFirstTitleOfContainer(div, container)
+  local first_title = nil
+  ---@type Filter
+  local first_title_filter = {
+    traverse = "topdown",
+    Header = function(header)
+      if not first_title then
+        first_title = stringify(header.content)
+      end
+    end
+  }
+  div:walk(first_title_filter)
+  if first_title then
+    container.title = first_title
+  end
+end
+
 local function storeAndExplore(div, filter_name)
   if not current_container.children then
     current_container.children = {}
@@ -51,6 +69,7 @@ local function storeAndExplore(div, filter_name)
     format = attributes[INCLUDE_FORMAT_ATTR],
     sha1 = attributes[INCLUDE_SHA1_ATTR],
   }
+  setFirstTitleOfContainer(div, container)
   table_insert(current_container.children, container)
   local saved_current_container = current_container
   current_container = container
@@ -82,6 +101,7 @@ function Writer(doc, opts)
   base.src = src
   base.format = tostring(meta[ROOT_FORMAT_META_KEY] or pandoc.format.from_path(src) or FORMAT)
   base.sha1 = tostring(meta[ROOT_SHA1_META_KEY])
+  setFirstTitleOfContainer(pandoc.Div(doc.blocks), base)
   return pandoc.json.encode(base)
 end
 

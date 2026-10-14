@@ -271,7 +271,8 @@ It ouputs a JSON object like this:
     "format": "html",
     "id": "root",
     "sha1": "64b297779956f64503df8dccca191f76403462f0",
-    "src": "master.html"
+    "src": "master.html",
+    "title": "Title of the main document"
 }
 ```
 
